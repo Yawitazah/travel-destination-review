@@ -43,6 +43,28 @@ The script can read the original Rowan-style sheet layout, including rich-text h
 
 Customer choices are written to the `Customer Choices` tab. Admin saves are written to the `Site Content` tab.
 
+## Multiple Vacation Opportunities
+
+Each vacation opportunity has:
+
+- Project name
+- Client name
+- Client email
+- Client phone
+- Uploaded spreadsheet trip data
+
+Log in as admin, open the `Data` tab, fill out the opportunity fields, upload the offer spreadsheet, and click `Save`.
+
+The app creates a unique opportunity ID and a `Live Opportunity URL` like:
+
+```text
+https://your-site.com/?opportunity=rowan-summer-trip-client-name
+```
+
+Use that URL for the customer. Each opportunity saves separately in Google Sheets so multiple live trips do not interfere with each other.
+
+The `Download Template` button in the Data tab downloads a starter CSV with all required opportunity, resort, and flight columns.
+
 ## Deploy
 
 This app uses `server.js`, so deploy it to a Node-capable host such as Render or Railway for the full admin and spreadsheet-upload features.

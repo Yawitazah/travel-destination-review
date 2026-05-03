@@ -5,9 +5,17 @@ const STYLE_KEY = "dwTravelOfferStyles";
 const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
 const GOOGLE_SCRIPT_URL_KEY = "dwTravelGoogleScriptUrl";
+const OPPORTUNITY_KEY = "dwTravelOpportunity";
 const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec";
 
 const defaultTripData = {
+  opportunity: {
+    id: "rowan-summer-trip-may-2026",
+    projectName: "Rowan Summer Trip - May 2026",
+    clientName: "",
+    clientEmail: "",
+    clientPhone: ""
+  },
   dates: "May 28, 2026 - June 1, 2026",
   guests: "2 people",
   offers: [
@@ -83,6 +91,12 @@ const loginDialog = document.querySelector("#loginDialog");
 const loginForm = document.querySelector("#loginForm");
 const dialogClose = document.querySelector(".dialog-close");
 const googleScriptUrl = document.querySelector("#googleScriptUrl");
+const projectName = document.querySelector("#projectName");
+const clientName = document.querySelector("#clientName");
+const clientEmail = document.querySelector("#clientEmail");
+const clientPhone = document.querySelector("#clientPhone");
+const opportunityUrl = document.querySelector("#opportunityUrl");
+const downloadTemplate = document.querySelector("#downloadTemplate");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
 const editValue = document.querySelector("#editValue");
@@ -155,17 +169,19 @@ function configuredGoogleUrl() {
 async function googleApi(action, payload = null) {
   const endpoint = configuredGoogleUrl();
   if (!endpoint) throw new Error("Google Apps Script URL is not configured");
+  const opportunityId = (payload?.opportunityId || tripData.opportunity?.id || requestedOpportunityId());
   if (payload) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...payload })
+      body: JSON.stringify({ action, opportunityId, ...payload })
     });
     if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
     return response.json();
   }
   const url = new URL(endpoint);
   url.searchParams.set("action", action);
+  url.searchParams.set("opportunityId", opportunityId);
   const response = await fetch(url.toString());
   if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
   return response.json();
@@ -207,6 +223,43 @@ function slug(value, fallback) {
   return cleaned || fallback;
 }
 
+function opportunityFromInputs() {
+  const existing = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
+  const next = {
+    id: existing.id || "",
+    projectName: projectName?.value.trim() || existing.projectName || "",
+    clientName: clientName?.value.trim() || existing.clientName || "",
+    clientEmail: clientEmail?.value.trim() || existing.clientEmail || "",
+    clientPhone: clientPhone?.value.trim() || existing.clientPhone || ""
+  };
+  next.id = slug(next.id || `${next.projectName}-${next.clientName}`, "vacation-opportunity");
+  return next;
+}
+
+function requestedOpportunityId() {
+  return new URLSearchParams(window.location.search).get("opportunity") || stored(OPPORTUNITY_KEY, defaultTripData.opportunity).id;
+}
+
+function syncOpportunityFields() {
+  const opportunity = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
+  if (projectName) projectName.value = opportunity.projectName || "";
+  if (clientName) clientName.value = opportunity.clientName || "";
+  if (clientEmail) clientEmail.value = opportunity.clientEmail || "";
+  if (clientPhone) clientPhone.value = opportunity.clientPhone || "";
+  if (opportunityUrl) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("opportunity", opportunity.id || "vacation-opportunity");
+    opportunityUrl.value = url.toString();
+  }
+}
+
+function updateOpportunityFromInputs() {
+  tripData.opportunity = opportunityFromInputs();
+  setStored(OPPORTUNITY_KEY, tripData.opportunity);
+  syncOpportunityFields();
+  return tripData.opportunity;
+}
+
 function boolValue(value) {
   return String(value).trim().toLowerCase() === "true" || String(value).trim().toLowerCase() === "yes";
 }
@@ -225,6 +278,7 @@ function offerById(id) {
 }
 
 function hydrateKnownLinks(data) {
+  data.opportunity = data.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
   data.offers = (data.offers || []).map((offer) => {
     const links = knownLinks[offer.property] || {};
     const propertyLink = offer.propertyLink || links.propertyLink || "";
@@ -467,7 +521,7 @@ function updateOwnerChoice() {
     choice.vipService && "VIP service",
     choice.travelInsurance && "Travel insurance"
   ].filter(Boolean).join(", ") || "No optional extras";
-  ownerChoice.textContent = `${choice.resortName} | ${choice.room} | ${choice.price}. Guests: ${choice.guests || tripData.guests}. Extras: ${extras}. Notes: ${choice.notes || "None"}`;
+  ownerChoice.textContent = `${choice.projectName || tripData.opportunity?.projectName || "Vacation Opportunity"} | ${choice.clientName || tripData.opportunity?.clientName || "Client"} | ${choice.resortName} | ${choice.room} | ${choice.price}. Guests: ${choice.guests || tripData.guests}. Extras: ${extras}. Notes: ${choice.notes || "None"}`;
 }
 
 function parseCsv(text) {
@@ -517,6 +571,15 @@ function parseTripCsv(text) {
   const propertyIndex = rows.findIndex((row) => normalizeHeader(row[0]) === "property");
   const flightIndex = rows.findIndex((row) => String(row[0] || "").toLowerCase().includes("flight options"));
   const parsed = structuredClone(defaultTripData);
+  const opportunityRows = rows.filter((row) => normalizeHeader(row[0]) === "opportunity");
+  const opportunityValues = Object.fromEntries(opportunityRows.map((row) => [normalizeHeader(row[1]), row[2] || ""]));
+  parsed.opportunity = {
+    id: slug(`${opportunityValues.projectname || tripData.opportunity?.projectName || parsed.opportunity.projectName}-${opportunityValues.clientname || tripData.opportunity?.clientName || ""}`, parsed.opportunity.id),
+    projectName: opportunityValues.projectname || tripData.opportunity?.projectName || parsed.opportunity.projectName,
+    clientName: opportunityValues.clientname || tripData.opportunity?.clientName || "",
+    clientEmail: opportunityValues.clientemail || tripData.opportunity?.clientEmail || "",
+    clientPhone: opportunityValues.clientphone || tripData.opportunity?.clientPhone || ""
+  };
   if (datesRow) parsed.dates = String(datesRow[0]).replace(/^Dates:\s*/i, "").trim();
 
   if (propertyIndex >= 0) {
@@ -618,6 +681,11 @@ choiceForm.addEventListener("submit", async (event) => {
     room: offer.roomType,
     price: offer.cost,
     guests: tripData.guests,
+    opportunityId: tripData.opportunity?.id || requestedOpportunityId(),
+    projectName: tripData.opportunity?.projectName || "",
+    clientName: tripData.opportunity?.clientName || "",
+    clientEmail: tripData.opportunity?.clientEmail || "",
+    clientPhone: tripData.opportunity?.clientPhone || "",
     privateTransfer: choiceForm.privateTransfer.checked,
     vipService: choiceForm.vipService.checked,
     travelInsurance: choiceForm.travelInsurance.checked,
@@ -688,8 +756,11 @@ editCsvUpload.addEventListener("change", () => {
       } else {
         tripData = hydrateKnownLinks(parseTripCsv(reader.result));
       }
+      tripData.opportunity = opportunityFromInputs();
       setStored(TRIP_DATA_KEY, tripData);
+      setStored(OPPORTUNITY_KEY, tripData.opportunity);
       renderTrip();
+      syncOpportunityFields();
       applySavedContent();
       notify("Spreadsheet loaded. Review, then click Save to keep it.");
     } catch {
@@ -751,6 +822,7 @@ document.querySelector("#applyEdit").addEventListener("click", () => {
 });
 
 document.querySelector("#saveEdit").addEventListener("click", async () => {
+  updateOpportunityFromInputs();
   const snapshot = captureContent();
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
@@ -790,6 +862,38 @@ document.querySelector("#doneEdit").addEventListener("click", () => {
   notify("Editing hidden.");
 });
 
+[projectName, clientName, clientEmail, clientPhone].forEach((input) => {
+  input?.addEventListener("input", () => {
+    tripData.opportunity = opportunityFromInputs();
+    syncOpportunityFields();
+  });
+});
+
+downloadTemplate?.addEventListener("click", () => {
+  const line = (values) => values.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",");
+  const csv = [
+    line(["Section", "Field", "Value", "Notes"]),
+    line(["Opportunity", "Project Name", "Rowan Summer Trip - May 2026", "Required"]),
+    line(["Opportunity", "Client Name", "Client Full Name", "Required"]),
+    line(["Opportunity", "Client Email", "client@email.com", "Required"]),
+    line(["Opportunity", "Client Phone", "(555) 555-5555", "Required"]),
+    [],
+    line(["Dates: May 28, 2026 - June 1, 2026"]),
+    line(["Property", "Room Type", "Location", "Cost (total 4 night)", "Private Airport Transfer *optional*", "VIP Arrival/Departure Service", "Travel Insurance", "Inclusions", "Pool", "Restaurant", "Spa", "Details Link", "Image URL"]),
+    line(["Example Resort", "Ocean View King", "Nassau, Bahamas", "$4,500.00", "$330.00", "$480.00", "$560.00", "Airport transfers; resort credit", "TRUE", "TRUE", "TRUE", "https://example.com", "https://example.com/photo.jpg"]),
+    [],
+    line(["Flight options"]),
+    line(["Airline", "Outbound", "Return", "Cost"]),
+    line(["Delta Airlines", "HSV to ATL - departs 10:11 AM arrives 12:12 PM; ATL to NAS - departs 2:32 PM arrives 4:35 PM", "NAS to ATL - departs 6:00 PM arrives 8:27 PM; ATL to HSV - departs 11:14 PM arrives 11:13 PM", "Included in cost of resort"])
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "vacation-opportunity-template.csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
 function rgbToHex(rgb) {
   const values = rgb.match(/\d+/g);
   if (!values) return "#12313a";
@@ -808,11 +912,13 @@ async function boot() {
     setStored(CONTENT_KEY, remoteContent.content || {});
     setStored(STYLE_KEY, remoteContent.styles || {});
     renderTrip();
+    syncOpportunityFields();
     applySavedContent(remoteContent.content, remoteContent.styles);
     if (remoteContent.latestChoice) setStored(CHOICE_KEY, remoteContent.latestChoice);
   } catch {
     tripData = hydrateKnownLinks(stored(TRIP_DATA_KEY, defaultTripData));
     renderTrip();
+    syncOpportunityFields();
     applySavedContent();
   }
 

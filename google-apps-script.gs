@@ -1,4 +1,5 @@
 const SETTINGS_SHEET = 'Settings';
+const OPPORTUNITIES_SHEET = 'Opportunities';
 const CONTENT_SHEET = 'Site Content';
 const CHOICES_SHEET = 'Customer Choices';
 const OFFERS_SHEET = 'Offers';
@@ -6,12 +7,14 @@ const FLIGHTS_SHEET = 'Flights';
 
 function doGet(e) {
   const action = (e.parameter.action || 'content').toLowerCase();
+  const opportunityId = e.parameter.opportunityId || 'rowan-summer-trip-may-2026';
   if (action === 'content') {
+    const saved = readContentRecord(opportunityId);
     return jsonOutput({
-      content: readJsonCell(CONTENT_SHEET, 'A2', {}),
-      styles: readJsonCell(CONTENT_SHEET, 'B2', {}),
-      tripData: readTripData(),
-      latestChoice: latestChoice()
+      content: saved.content,
+      styles: saved.styles,
+      tripData: readTripData(opportunityId, saved.tripData),
+      latestChoice: latestChoice(opportunityId)
     });
   }
   return jsonOutput({ ok: true });
@@ -20,19 +23,15 @@ function doGet(e) {
 function doPost(e) {
   const body = JSON.parse(e.postData.contents || '{}');
   const action = (body.action || '').toLowerCase();
+  const opportunityId = body.opportunityId || (body.tripData && body.tripData.opportunity && body.tripData.opportunity.id) || 'rowan-summer-trip-may-2026';
 
   if (action === 'choice') {
-    appendChoice(body.choice || {});
+    appendChoice(body.choice || {}, opportunityId);
     return jsonOutput({ ok: true });
   }
 
   if (action === 'content') {
-    ensureSheet(CONTENT_SHEET, ['Content JSON', 'Styles JSON', 'Trip Data JSON', 'Updated At']);
-    const sheet = SpreadsheetApp.getActive().getSheetByName(CONTENT_SHEET);
-    sheet.getRange('A2').setValue(JSON.stringify(body.content || {}));
-    sheet.getRange('B2').setValue(JSON.stringify(body.styles || {}));
-    sheet.getRange('C2').setValue(JSON.stringify(body.tripData || {}));
-    sheet.getRange('D2').setValue(new Date());
+    saveContentRecord(opportunityId, body);
     return jsonOutput({ ok: true });
   }
 
@@ -67,17 +66,88 @@ function readJsonCell(sheetName, cell, fallback) {
   }
 }
 
-function latestChoice() {
+function readContentRecord(opportunityId) {
+  const headers = ['Opportunity ID', 'Project Name', 'Client Name', 'Client Email', 'Client Phone', 'Content JSON', 'Styles JSON', 'Trip Data JSON', 'Updated At'];
+  const sheet = ensureSheet(CONTENT_SHEET, headers);
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex((row, index) => index > 0 && row[0] === opportunityId);
+  if (rowIndex < 0) return { content: {}, styles: {}, tripData: null };
+  return {
+    content: parseJson(values[rowIndex][5], {}),
+    styles: parseJson(values[rowIndex][6], {}),
+    tripData: parseJson(values[rowIndex][7], null)
+  };
+}
+
+function saveContentRecord(opportunityId, body) {
+  const headers = ['Opportunity ID', 'Project Name', 'Client Name', 'Client Email', 'Client Phone', 'Content JSON', 'Styles JSON', 'Trip Data JSON', 'Updated At'];
+  const sheet = ensureSheet(CONTENT_SHEET, headers);
+  const opportunity = (body.tripData && body.tripData.opportunity) || {};
+  const row = [
+    opportunityId,
+    opportunity.projectName || '',
+    opportunity.clientName || '',
+    opportunity.clientEmail || '',
+    opportunity.clientPhone || '',
+    JSON.stringify(body.content || {}),
+    JSON.stringify(body.styles || {}),
+    JSON.stringify(body.tripData || {}),
+    new Date()
+  ];
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex((existing, index) => index > 0 && existing[0] === opportunityId);
+  if (rowIndex >= 0) sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([row]);
+  else sheet.appendRow(row);
+
+  saveOpportunity(opportunityId, opportunity);
+}
+
+function saveOpportunity(opportunityId, opportunity) {
+  const headers = ['Opportunity ID', 'Project Name', 'Client Name', 'Client Email', 'Client Phone', 'Updated At'];
+  const sheet = ensureSheet(OPPORTUNITIES_SHEET, headers);
+  const row = [
+    opportunityId,
+    opportunity.projectName || '',
+    opportunity.clientName || '',
+    opportunity.clientEmail || '',
+    opportunity.clientPhone || '',
+    new Date()
+  ];
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex((existing, index) => index > 0 && existing[0] === opportunityId);
+  if (rowIndex >= 0) sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([row]);
+  else sheet.appendRow(row);
+}
+
+function parseJson(raw, fallback) {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function latestChoice(opportunityId) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(CHOICES_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return null;
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const row = sheet.getRange(sheet.getLastRow(), 1, 1, sheet.getLastColumn()).getValues()[0];
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const idIndex = headers.indexOf('opportunityId');
+  const rows = idIndex >= 0 ? values.filter((row) => row[idIndex] === opportunityId) : values;
+  if (!rows.length) return null;
+  const row = rows[rows.length - 1];
   return Object.fromEntries(headers.map((header, index) => [header, row[index]]));
 }
 
-function appendChoice(choice) {
+function appendChoice(choice, opportunityId) {
   const headers = [
     'receivedAt',
+    'opportunityId',
+    'projectName',
+    'clientName',
+    'clientEmail',
+    'clientPhone',
     'offerId',
     'resortName',
     'room',
@@ -90,18 +160,47 @@ function appendChoice(choice) {
     'submittedAt'
   ];
   const sheet = ensureSheet(CHOICES_SHEET, headers);
-  sheet.appendRow(headers.map((header) => header === 'receivedAt' ? new Date() : choice[header] || ''));
+  sheet.appendRow(headers.map((header) => {
+    if (header === 'receivedAt') return new Date();
+    if (header === 'opportunityId') return choice.opportunityId || opportunityId;
+    return choice[header] || '';
+  }));
 }
 
-function readTripData() {
-  const savedTripData = readJsonCell(CONTENT_SHEET, 'C2', null);
-  if (savedTripData && savedTripData.offers) return savedTripData;
+function readTripData(opportunityId, savedTripData) {
+  if (savedTripData && savedTripData.offers) return withOpportunity(savedTripData, opportunityId);
 
   const offersSheet = SpreadsheetApp.getActive().getSheetByName(OFFERS_SHEET);
   const flightsSheet = SpreadsheetApp.getActive().getSheetByName(FLIGHTS_SHEET);
-  if (offersSheet) return readNormalizedSheets(offersSheet, flightsSheet);
+  if (offersSheet) return withOpportunity(readNormalizedSheets(offersSheet, flightsSheet), opportunityId);
 
-  return readRowanSheet();
+  return withOpportunity(readRowanSheet(), opportunityId);
+}
+
+function withOpportunity(tripData, opportunityId) {
+  tripData.opportunity = tripData.opportunity || opportunityFromSheet(opportunityId);
+  tripData.opportunity.id = tripData.opportunity.id || opportunityId;
+  return tripData;
+}
+
+function opportunityFromSheet(opportunityId) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { id: opportunityId, projectName: '', clientName: '', clientEmail: '', clientPhone: '' };
+  }
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  const idIndex = headers.indexOf('Opportunity ID');
+  const row = values.find((candidate) => candidate[idIndex] === opportunityId);
+  if (!row) return { id: opportunityId, projectName: '', clientName: '', clientEmail: '', clientPhone: '' };
+  const record = Object.fromEntries(headers.map((header, index) => [header, row[index]]));
+  return {
+    id: opportunityId,
+    projectName: record['Project Name'] || '',
+    clientName: record['Client Name'] || '',
+    clientEmail: record['Client Email'] || '',
+    clientPhone: record['Client Phone'] || ''
+  };
 }
 
 function readNormalizedSheets(offersSheet, flightsSheet) {
