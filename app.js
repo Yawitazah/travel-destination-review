@@ -98,6 +98,7 @@ const downloadTemplate = document.querySelector("#downloadTemplate");
 const newOpportunity = document.querySelector("#newOpportunity");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
+const editSheetHandle = document.querySelector("#editSheetHandle");
 const editValue = document.querySelector("#editValue");
 const editHref = document.querySelector("#editHref");
 const editColor = document.querySelector("#editColor");
@@ -411,6 +412,12 @@ function syncImageSizeInputs(el) {
 function showEditTab(name) {
   tabButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.tab === name));
   tabPanels.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === name));
+}
+
+function setEditSheetExpanded(expanded) {
+  editPanel.classList.toggle("is-expanded", expanded);
+  editSheetHandle?.setAttribute("aria-expanded", String(expanded));
+  editSheetHandle?.setAttribute("aria-label", expanded ? "Collapse edit dashboard" : "Expand edit dashboard");
 }
 
 function renderOffers() {
@@ -791,6 +798,10 @@ editLauncher.addEventListener("click", () => {
   else loginDialog.showModal();
 });
 
+editSheetHandle?.addEventListener("click", () => {
+  setEditSheetExpanded(!editPanel.classList.contains("is-expanded"));
+});
+
 dialogClose.addEventListener("click", () => {
   loginDialog.close();
   document.querySelector("#loginError").textContent = "";
@@ -806,6 +817,7 @@ loginForm.addEventListener("submit", (event) => {
     loginDialog.close();
     document.body.classList.add("editing");
     editPanel.hidden = false;
+    setEditSheetExpanded(false);
     notify("Editing unlocked.");
   } else {
     document.querySelector("#loginError").textContent = "Email or password did not match.";
@@ -948,6 +960,7 @@ document.querySelector("#undoEdit").addEventListener("click", () => {
 
 document.querySelector("#doneEdit").addEventListener("click", () => {
   document.body.classList.remove("editing");
+  setEditSheetExpanded(false);
   currentEditable?.classList.remove("is-selected-edit");
   currentEditable = null;
   editPanel.hidden = true;
