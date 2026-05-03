@@ -6,6 +6,7 @@ const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
 const OPPORTUNITY_KEY = "dwTravelOpportunity";
 const OPPORTUNITY_LIST_KEY = "dwTravelOpportunities";
+const OWNER_SESSION_KEY = "dwTravelOwnerSession";
 
 const defaultTripData = {
   opportunity: {
@@ -179,6 +180,13 @@ function dataApi(path, options = {}) {
   return api(path, options);
 }
 
+function rememberedOwnerSession() {
+  const session = stored(OWNER_SESSION_KEY, null);
+  if (session?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase() && session?.password === OWNER_PASSWORD) return session;
+  localStorage.removeItem(OWNER_SESSION_KEY);
+  return null;
+}
+
 function notify(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -204,8 +212,9 @@ function slug(value, fallback) {
 function opportunityFromInputs() {
   const existing = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
   const remembered = localOpportunities().find((item) => item.id === existing.id || item.id === requestedOpportunityId()) || {};
+  const requestedId = requestedOpportunityId();
   const fallback = {
-    id: existing.id || remembered.id,
+    id: requestedId || existing.id || remembered.id,
     projectName: existing.projectName || remembered.projectName || "",
     clientName: existing.clientName || remembered.clientName || "",
     clientEmail: existing.clientEmail || remembered.clientEmail || "",
@@ -213,7 +222,7 @@ function opportunityFromInputs() {
   };
   const generatedFromFields = slug(`${projectName?.value.trim() || ""}-${clientName?.value.trim() || ""}`, "");
   const next = {
-    id: fallback.id && !String(fallback.id).startsWith("new-vacation-") ? fallback.id : generatedFromFields,
+    id: fallback.id || generatedFromFields,
     projectName: projectName?.value.trim() || fallback.projectName || "",
     clientName: clientName?.value.trim() || fallback.clientName || "",
     clientEmail: clientEmail?.value.trim() || fallback.clientEmail || "",
@@ -502,6 +511,13 @@ function endEditSheetDrag(event) {
   return moved;
 }
 
+function unlockOwnerEditing(message = "Editing unlocked.") {
+  document.body.classList.add("editing");
+  editPanel.hidden = false;
+  setEditSheetExpanded(false);
+  notify(message);
+}
+
 function renderOffers() {
   offersRoot.innerHTML = tripData.offers.map((offer, index) => {
     const id = offer.id;
@@ -731,12 +747,13 @@ function parseTripCsv(text) {
   const parsed = structuredClone(defaultTripData);
   const opportunityRows = rows.filter((row) => normalizeHeader(row[0]) === "opportunity");
   const opportunityValues = Object.fromEntries(opportunityRows.map((row) => [normalizeHeader(row[1]), row[2] || ""]));
+  const existingOpportunity = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
   parsed.opportunity = {
-    id: slug(`${opportunityValues.projectname || tripData.opportunity?.projectName || parsed.opportunity.projectName}-${opportunityValues.clientname || tripData.opportunity?.clientName || ""}`, parsed.opportunity.id),
-    projectName: opportunityValues.projectname || tripData.opportunity?.projectName || parsed.opportunity.projectName,
-    clientName: opportunityValues.clientname || tripData.opportunity?.clientName || "",
-    clientEmail: opportunityValues.clientemail || tripData.opportunity?.clientEmail || "",
-    clientPhone: opportunityValues.clientphone || tripData.opportunity?.clientPhone || ""
+    id: requestedOpportunityId() || existingOpportunity.id || parsed.opportunity.id,
+    projectName: opportunityValues.projectname || existingOpportunity.projectName || parsed.opportunity.projectName,
+    clientName: opportunityValues.clientname || existingOpportunity.clientName || "",
+    clientEmail: opportunityValues.clientemail || existingOpportunity.clientEmail || "",
+    clientPhone: opportunityValues.clientphone || existingOpportunity.clientPhone || ""
   };
   if (datesRow) parsed.dates = String(datesRow[0]).replace(/^Dates:\s*/i, "").trim();
 
@@ -915,6 +932,7 @@ choiceForm.addEventListener("submit", async (event) => {
 
 editLauncher.addEventListener("click", () => {
   if (document.body.classList.contains("editing")) editPanel.hidden = false;
+  else if (ownerSession) unlockOwnerEditing("Editing unlocked from this device.");
   else loginDialog.showModal();
 });
 
@@ -953,13 +971,13 @@ loginForm.addEventListener("submit", (event) => {
   const formData = new FormData(loginForm);
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
+  const rememberLogin = formData.get("rememberLogin") === "on";
   if (email === OWNER_EMAIL.toLowerCase() && password === OWNER_PASSWORD) {
     ownerSession = { email: OWNER_EMAIL, password };
+    if (rememberLogin) setStored(OWNER_SESSION_KEY, ownerSession);
+    else localStorage.removeItem(OWNER_SESSION_KEY);
     loginDialog.close();
-    document.body.classList.add("editing");
-    editPanel.hidden = false;
-    setEditSheetExpanded(false);
-    notify("Editing unlocked.");
+    unlockOwnerEditing();
   } else {
     document.querySelector("#loginError").textContent = "Email or password did not match.";
   }
@@ -1057,6 +1075,11 @@ document.querySelector("#applyEdit").addEventListener("click", () => {
 });
 
 document.querySelector("#saveEdit").addEventListener("click", async () => {
+  if (!ownerSession) {
+    notify("Log in to save this trip to Railway.");
+    loginDialog.showModal();
+    return;
+  }
   const opportunity = updateOpportunityFromInputs();
   rememberOpportunity(opportunity);
   renderOpportunityList(mergeOpportunities([]));
@@ -1065,27 +1088,25 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
   setStored(STYLE_KEY, snapshot.styles);
   setStored(TRIP_DATA_KEY, tripData);
   let serverSaved = false;
-  if (ownerSession) {
-    try {
-      await dataApi("/api/content", {
-        method: "POST",
-        body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
-      });
-      serverSaved = await verifySharedOpportunity(opportunity.id);
-      if (!serverSaved) {
-        setOpportunityStatus(
-          "The page content saved, but Railway did not register this trip in the shared Trips list. Click Save again after the latest server deploy finishes.",
-          "warning"
-        );
-      }
-    } catch (error) {
-      notify("Saved locally. Railway did not accept the save; check the deployment and try Save again.");
+  try {
+    await dataApi("/api/content", {
+      method: "POST",
+      body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
+    });
+    serverSaved = await verifySharedOpportunity(opportunity.id);
+    if (!serverSaved) {
+      setOpportunityStatus(
+        "The page content saved, but Railway did not register this trip in the shared Trips list. Click Save again after the latest server deploy finishes.",
+        "warning"
+      );
     }
+  } catch (error) {
+    notify("Railway did not accept the save; check the deployment and try Save again.");
   }
   updateOwnerChoice();
   loadOpportunityList();
   showEditTab("opportunities");
-  notify(serverSaved ? "Saved to Railway and Trips." : "Saved locally only. Railway needs the latest server deploy.");
+  notify(serverSaved ? "Saved to Railway and Trips." : "Railway save needs attention. Try again after deployment finishes.");
 });
 
 document.querySelector("#undoEdit").addEventListener("click", () => {
@@ -1181,6 +1202,7 @@ function rgbToHex(rgb) {
 }
 
 async function boot() {
+  ownerSession = rememberedOwnerSession();
   try {
     const remoteContent = await dataApi("/api/content");
     tripData = hydrateKnownLinks(remoteContent.tripData || stored(TRIP_DATA_KEY, defaultTripData));

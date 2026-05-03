@@ -564,6 +564,18 @@ textarea, input {
 
 .error { min-height: 18px; color: #b3261e; margin: 0; }
 
+.remember-login {
+  display: flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.88rem;
+}
+
+.remember-login input {
+  width: auto;
+}
+
 .edit-panel {
   position: fixed;
   right: 18px;
