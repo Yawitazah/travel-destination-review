@@ -121,6 +121,7 @@ const toast = document.querySelector("#toast");
 const offersRoot = document.querySelector("#offers");
 const flightCards = document.querySelector("#flightCards");
 const opportunityList = document.querySelector("#opportunityList");
+const opportunityStatus = document.querySelector("#opportunityStatus");
 const refreshOpportunities = document.querySelector("#refreshOpportunities");
 const tabButtons = [...document.querySelectorAll(".edit-tab")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
@@ -174,21 +175,25 @@ async function googleApi(action, payload = null) {
   const endpoint = configuredGoogleUrl();
   if (!endpoint) throw new Error("Google Apps Script URL is not configured");
   const opportunityId = (payload?.opportunityId || tripData.opportunity?.id || requestedOpportunityId());
+  const readJson = async (response) => {
+    if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
+    const data = await response.json();
+    if (data?.ok === false) throw new Error(data.error || "Google request failed");
+    return data;
+  };
   if (payload) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action, opportunityId, ...payload })
     });
-    if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
-    return response.json();
+    return readJson(response);
   }
   const url = new URL(endpoint);
   url.searchParams.set("action", action);
   url.searchParams.set("opportunityId", opportunityId);
   const response = await fetch(url.toString());
-  if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
-  return response.json();
+  return readJson(response);
 }
 
 async function dataApi(path, options = {}) {
@@ -317,12 +322,46 @@ function renderOpportunityList(opportunities = []) {
   `).join("");
 }
 
+function setOpportunityStatus(message = "", type = "") {
+  if (!opportunityStatus) return;
+  opportunityStatus.textContent = message;
+  opportunityStatus.className = `opportunity-status ${type ? `is-${type}` : ""}`.trim();
+  opportunityStatus.hidden = !message;
+}
+
+function assertOpportunityResponse(response) {
+  if (!Array.isArray(response?.opportunities)) {
+    throw new Error("The deployed Google Apps Script does not return the Trips list yet.");
+  }
+  return response.opportunities;
+}
+
+async function verifySharedOpportunity(opportunityId) {
+  const response = await dataApi("/api/opportunities");
+  return assertOpportunityResponse(response).some((item) => item.id === opportunityId);
+}
+
 async function loadOpportunityList() {
+  const local = mergeOpportunities([]);
+  renderOpportunityList(local);
+  setOpportunityStatus(local.length ? "Checking Google Sheets for shared trips..." : "Checking Google Sheets for shared trips.");
   try {
     const response = await dataApi("/api/opportunities");
-    renderOpportunityList(mergeOpportunities(response.opportunities || []));
-  } catch {
-    renderOpportunityList(mergeOpportunities([]));
+    const remote = assertOpportunityResponse(response);
+    renderOpportunityList(mergeOpportunities(remote));
+    const localOnlyCount = local.filter((item) => !remote.some((remoteItem) => remoteItem.id === item.id)).length;
+    setOpportunityStatus(
+      localOnlyCount
+        ? `${localOnlyCount} trip${localOnlyCount === 1 ? " is" : "s are"} only saved in this browser. Click Save after redeploying the Google script to make them visible on your phone.`
+        : "Connected to Google Sheets. These trips are shared across devices.",
+      localOnlyCount ? "warning" : "good"
+    );
+  } catch (error) {
+    renderOpportunityList(local);
+    setOpportunityStatus(
+      "Google Sheets is not returning the shared Trips list yet. Redeploy the Apps Script from this project, then click Refresh.",
+      "warning"
+    );
   }
 }
 
@@ -904,6 +943,7 @@ document.querySelector("#applyEdit").addEventListener("click", () => {
 document.querySelector("#saveEdit").addEventListener("click", async () => {
   const opportunity = updateOpportunityFromInputs();
   rememberOpportunity(opportunity);
+  renderOpportunityList(mergeOpportunities([]));
   const snapshot = captureContent();
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
@@ -916,14 +956,21 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
         method: "POST",
         body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
       });
-      googleSaved = true;
-    } catch {
+      googleSaved = await verifySharedOpportunity(opportunity.id);
+      if (!googleSaved) {
+        setOpportunityStatus(
+          "The page content saved, but Google Sheets did not register this trip in the shared Trips list. Redeploy the latest Apps Script, then Save again.",
+          "warning"
+        );
+      }
+    } catch (error) {
       notify("Saved locally. Google Sheets did not accept the save; update/redeploy Apps Script and try Save again.");
     }
   }
   updateOwnerChoice();
   loadOpportunityList();
-  notify(googleSaved ? "Saved to Google Sheets and Trips." : "Saved locally and added to Trips.");
+  showEditTab("opportunities");
+  notify(googleSaved ? "Saved to Google Sheets and Trips." : "Saved locally only. Google Trips needs the latest Apps Script.");
 });
 
 document.querySelector("#undoEdit").addEventListener("click", () => {

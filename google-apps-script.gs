@@ -22,6 +22,9 @@ function doGet(e) {
   if (action === 'opportunities') {
     return jsonOutput({ opportunities: listOpportunities() });
   }
+  if (action === 'health') {
+    return jsonOutput({ ok: true, version: '2026-05-03-opportunities' });
+  }
   return jsonOutput({ ok: true });
 }
 

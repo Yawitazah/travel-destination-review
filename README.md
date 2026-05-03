@@ -33,15 +33,17 @@ You can use a Google Sheet as the live information source.
 8. Copy the Web App URL ending in `/exec`.
 9. Open the site, log in as admin, paste the URL into `Google Apps Script URL`, and click `Save`.
 
+When you edit `google-apps-script.gs` later, Google does not update the live `/exec` URL automatically. Go to `Deploy > Manage deployments`, click the pencil icon, choose `New version`, and deploy again. If the `Trips` tab says Google Sheets is not returning the shared list, the live deployment is still older than this repo's script.
+
 Current configured Apps Script URL:
 
 ```text
 https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec
 ```
 
-The script can read the original Rowan-style sheet layout, including rich-text hyperlinks. It can also use normalized tabs named `Offers`, `Flights`, `Settings`, `Site Content`, and `Customer Choices`.
+The script can read the original Rowan-style sheet layout, including rich-text hyperlinks. It can also use normalized tabs named `Offers`, `Flights`, `Settings`, `Opportunities`, `Site Content`, and `Customer Choices`.
 
-Customer choices are written to the `Customer Choices` tab. Admin saves are written to the `Site Content` tab.
+Customer choices are written to the `Customer Choices` tab. Admin saves are written to the `Site Content` tab, and the cross-device Trips list is written to the `Opportunities` tab.
 
 ## Multiple Vacation Opportunities
 
@@ -68,6 +70,8 @@ The `Download Template` button in the Data tab downloads a starter CSV with all 
 The `Trips` tab lists saved opportunities from Google Sheets. Click a trip to open its unique live URL and edit or review it.
 
 The browser also keeps a local opportunity index so a newly saved trip appears immediately in `Trips` even before the Google Sheet refreshes. Google Sheets remains the shared database after Apps Script accepts the save.
+
+When Save is clicked, the admin dashboard switches to the `Trips` tab and shows the saved opportunity immediately. The `Refresh` button then merges in anything currently saved in Google Sheets.
 
 ## Deploy
 

@@ -810,6 +810,28 @@ textarea, input {
   margin-top: 4px;
 }
 
+.opportunity-status {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(18,49,58,0.12);
+  background: rgba(18,49,58,0.05);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.opportunity-status.is-good {
+  border-color: rgba(20,184,196,0.32);
+  background: rgba(20,184,196,0.08);
+  color: var(--ink);
+}
+
+.opportunity-status.is-warning {
+  border-color: rgba(236,111,102,0.4);
+  background: rgba(236,111,102,0.1);
+  color: #8a3e39;
+}
+
 .opportunity-card {
   display: grid;
   gap: 12px;
