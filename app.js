@@ -4,6 +4,7 @@ const CONTENT_KEY = "dwTravelOfferContent";
 const STYLE_KEY = "dwTravelOfferStyles";
 const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
+const GOOGLE_SCRIPT_URL_KEY = "dwTravelGoogleScriptUrl";
 
 const defaultTripData = {
   dates: "May 28, 2026 - June 1, 2026",
@@ -80,6 +81,7 @@ const defaultTripData = {
 const loginDialog = document.querySelector("#loginDialog");
 const loginForm = document.querySelector("#loginForm");
 const dialogClose = document.querySelector(".dialog-close");
+const googleScriptUrl = document.querySelector("#googleScriptUrl");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
 const editValue = document.querySelector("#editValue");
@@ -141,6 +143,43 @@ async function api(path, options = {}) {
   });
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
   return response.json();
+}
+
+function configuredGoogleUrl() {
+  return (googleScriptUrl?.value || localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || "").trim();
+}
+
+async function googleApi(action, payload = null) {
+  const endpoint = configuredGoogleUrl();
+  if (!endpoint) throw new Error("Google Apps Script URL is not configured");
+  if (payload) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action, ...payload })
+    });
+    if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
+    return response.json();
+  }
+  const url = new URL(endpoint);
+  url.searchParams.set("action", action);
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
+  return response.json();
+}
+
+async function dataApi(path, options = {}) {
+  const googleUrl = configuredGoogleUrl();
+  if (googleUrl && path === "/api/content" && !options.method) {
+    return googleApi("content");
+  }
+  if (googleUrl && path === "/api/choices") {
+    return googleApi("choice", { choice: JSON.parse(options.body || "{}") });
+  }
+  if (googleUrl && path === "/api/content" && options.method === "POST") {
+    return googleApi("content", JSON.parse(options.body || "{}"));
+  }
+  return api(path, options);
 }
 
 function notify(message) {
@@ -574,9 +613,9 @@ choiceForm.addEventListener("submit", async (event) => {
   };
   setStored(CHOICE_KEY, choice);
   try {
-    await api("/api/choices", { method: "POST", body: JSON.stringify(choice) });
+    await dataApi("/api/choices", { method: "POST", body: JSON.stringify(choice) });
   } catch {
-    notify("Choice saved in this browser. Start the server for advisor review.");
+    notify("Choice saved in this browser. Check the Google URL or server if advisor review is needed.");
     updateOwnerChoice();
     return;
   }
@@ -703,9 +742,10 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
   setStored(TRIP_DATA_KEY, tripData);
+  localStorage.setItem(GOOGLE_SCRIPT_URL_KEY, configuredGoogleUrl());
   if (ownerSession) {
     try {
-      await api("/api/content", {
+      await dataApi("/api/content", {
         method: "POST",
         body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
       });
@@ -747,14 +787,16 @@ function rgbToHex(rgb) {
 }
 
 async function boot() {
+  if (googleScriptUrl) googleScriptUrl.value = localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || "";
   try {
-    const remoteContent = await api("/api/content");
+    const remoteContent = await dataApi("/api/content");
     tripData = hydrateKnownLinks(remoteContent.tripData || stored(TRIP_DATA_KEY, defaultTripData));
     setStored(TRIP_DATA_KEY, tripData);
     setStored(CONTENT_KEY, remoteContent.content || {});
     setStored(STYLE_KEY, remoteContent.styles || {});
     renderTrip();
     applySavedContent(remoteContent.content, remoteContent.styles);
+    if (remoteContent.latestChoice) setStored(CHOICE_KEY, remoteContent.latestChoice);
   } catch {
     tripData = hydrateKnownLinks(stored(TRIP_DATA_KEY, defaultTripData));
     renderTrip();
@@ -762,7 +804,7 @@ async function boot() {
   }
 
   try {
-    const remoteChoice = await api("/api/choices");
+    const remoteChoice = configuredGoogleUrl() ? stored(CHOICE_KEY, null) : await api("/api/choices");
     if (remoteChoice) setStored(CHOICE_KEY, remoteChoice);
     readChoice(remoteChoice);
   } catch {
