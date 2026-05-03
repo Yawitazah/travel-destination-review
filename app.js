@@ -97,6 +97,7 @@ const clientEmail = document.querySelector("#clientEmail");
 const clientPhone = document.querySelector("#clientPhone");
 const opportunityUrl = document.querySelector("#opportunityUrl");
 const downloadTemplate = document.querySelector("#downloadTemplate");
+const newOpportunity = document.querySelector("#newOpportunity");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
 const editValue = document.querySelector("#editValue");
@@ -225,8 +226,9 @@ function slug(value, fallback) {
 
 function opportunityFromInputs() {
   const existing = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
+  const generatedFromFields = slug(`${projectName?.value.trim() || ""}-${clientName?.value.trim() || ""}`, "");
   const next = {
-    id: existing.id || "",
+    id: existing.id && !String(existing.id).startsWith("new-vacation-") ? existing.id : generatedFromFields,
     projectName: projectName?.value.trim() || existing.projectName || "",
     clientName: clientName?.value.trim() || existing.clientName || "",
     clientEmail: clientEmail?.value.trim() || existing.clientEmail || "",
@@ -238,6 +240,10 @@ function opportunityFromInputs() {
 
 function requestedOpportunityId() {
   return new URLSearchParams(window.location.search).get("opportunity") || stored(OPPORTUNITY_KEY, defaultTripData.opportunity).id;
+}
+
+function freshOpportunityId() {
+  return `new-vacation-${Date.now().toString(36)}`;
 }
 
 function syncOpportunityFields() {
@@ -867,6 +873,35 @@ document.querySelector("#doneEdit").addEventListener("click", () => {
     tripData.opportunity = opportunityFromInputs();
     syncOpportunityFields();
   });
+});
+
+newOpportunity?.addEventListener("click", () => {
+  const id = freshOpportunityId();
+  tripData = structuredClone(defaultTripData);
+  tripData.opportunity = {
+    id,
+    projectName: "",
+    clientName: "",
+    clientEmail: "",
+    clientPhone: ""
+  };
+  setStored(TRIP_DATA_KEY, tripData);
+  setStored(OPPORTUNITY_KEY, tripData.opportunity);
+  setStored(CONTENT_KEY, {});
+  setStored(STYLE_KEY, {});
+  localStorage.removeItem(CHOICE_KEY);
+  selectedOfferId = null;
+  choiceForm.reset();
+  selectedName.textContent = "None selected yet";
+  selectedSummary.textContent = "Upload a spreadsheet or edit the starter offer details for this new opportunity.";
+  renderTrip();
+  syncOpportunityFields();
+  applySavedContent({}, {});
+  const url = new URL(window.location.href);
+  url.searchParams.set("opportunity", id);
+  window.history.replaceState({}, "", url.toString());
+  showEditTab("data");
+  notify("New vacation opportunity started. Add client details, upload a spreadsheet, then Save.");
 });
 
 downloadTemplate?.addEventListener("click", () => {

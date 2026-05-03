@@ -773,6 +773,16 @@ textarea, input {
   cursor: pointer;
 }
 
+.opportunity-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+#newOpportunity {
+  background: var(--coral);
+}
+
 .edit-actions {
   position: sticky;
   bottom: -14px;
