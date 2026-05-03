@@ -6,6 +6,7 @@ const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
 const GOOGLE_SCRIPT_URL_KEY = "dwTravelGoogleScriptUrl";
 const OPPORTUNITY_KEY = "dwTravelOpportunity";
+const OPPORTUNITY_LIST_KEY = "dwTravelOpportunities";
 const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec";
 
 const defaultTripData = {
@@ -271,6 +272,35 @@ function updateOpportunityFromInputs() {
   return tripData.opportunity;
 }
 
+function localOpportunities() {
+  return stored(OPPORTUNITY_LIST_KEY, []);
+}
+
+function rememberOpportunity(opportunity = tripData.opportunity) {
+  if (!opportunity?.id) return [];
+  const next = {
+    id: opportunity.id,
+    projectName: opportunity.projectName || "",
+    clientName: opportunity.clientName || "",
+    clientEmail: opportunity.clientEmail || "",
+    clientPhone: opportunity.clientPhone || "",
+    updatedAt: new Date().toISOString()
+  };
+  const existing = localOpportunities().filter((item) => item.id !== next.id);
+  const list = [next, ...existing];
+  setStored(OPPORTUNITY_LIST_KEY, list);
+  return list;
+}
+
+function mergeOpportunities(remote = []) {
+  const byId = new Map();
+  [...localOpportunities(), ...remote].forEach((item) => {
+    if (!item?.id) return;
+    byId.set(item.id, { ...(byId.get(item.id) || {}), ...item });
+  });
+  return [...byId.values()].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+}
+
 function renderOpportunityList(opportunities = []) {
   if (!opportunityList) return;
   if (!opportunities.length) {
@@ -290,9 +320,9 @@ function renderOpportunityList(opportunities = []) {
 async function loadOpportunityList() {
   try {
     const response = await dataApi("/api/opportunities");
-    renderOpportunityList(response.opportunities || []);
+    renderOpportunityList(mergeOpportunities(response.opportunities || []));
   } catch {
-    renderOpportunityList([]);
+    renderOpportunityList(mergeOpportunities([]));
   }
 }
 
@@ -872,25 +902,28 @@ document.querySelector("#applyEdit").addEventListener("click", () => {
 });
 
 document.querySelector("#saveEdit").addEventListener("click", async () => {
-  updateOpportunityFromInputs();
+  const opportunity = updateOpportunityFromInputs();
+  rememberOpportunity(opportunity);
   const snapshot = captureContent();
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
   setStored(TRIP_DATA_KEY, tripData);
   localStorage.setItem(GOOGLE_SCRIPT_URL_KEY, configuredGoogleUrl());
+  let googleSaved = false;
   if (ownerSession) {
     try {
       await dataApi("/api/content", {
         method: "POST",
         body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
       });
+      googleSaved = true;
     } catch {
-      notify("Saved in this browser. Start the server for shared saves.");
-      return;
+      notify("Saved locally. Google Sheets did not accept the save; update/redeploy Apps Script and try Save again.");
     }
   }
   updateOwnerChoice();
-  notify("Saved permanently.");
+  loadOpportunityList();
+  notify(googleSaved ? "Saved to Google Sheets and Trips." : "Saved locally and added to Trips.");
 });
 
 document.querySelector("#undoEdit").addEventListener("click", () => {
@@ -946,6 +979,7 @@ newOpportunity?.addEventListener("click", () => {
   window.history.replaceState({}, "", url.toString());
   showEditTab("data");
   notify("New vacation opportunity started. Add client details, upload a spreadsheet, then Save.");
+  loadOpportunityList();
 });
 
 downloadTemplate?.addEventListener("click", () => {

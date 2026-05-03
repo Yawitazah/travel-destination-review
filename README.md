@@ -67,6 +67,8 @@ The `Download Template` button in the Data tab downloads a starter CSV with all 
 
 The `Trips` tab lists saved opportunities from Google Sheets. Click a trip to open its unique live URL and edit or review it.
 
+The browser also keeps a local opportunity index so a newly saved trip appears immediately in `Trips` even before the Google Sheet refreshes. Google Sheets remains the shared database after Apps Script accepts the save.
+
 ## Deploy
 
 This app uses `server.js`, so deploy it to a Node-capable host such as Render or Railway for the full admin and spreadsheet-upload features.
