@@ -91,6 +91,11 @@ function deleteOpportunity(opportunityId) {
   return existed;
 }
 
+function purgeData() {
+  writeContentStore({ opportunities: {} });
+  writeChoices([]);
+}
+
 function send(res, status, body, type = "application/json; charset=utf-8") {
   res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store" });
   if (Buffer.isBuffer(body) || typeof body === "string") {
@@ -352,6 +357,15 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/opportunities" && req.method === "GET") {
       return send(res, 200, { opportunities: listOpportunities() });
+    }
+
+    if (requestUrl.pathname === "/api/admin/purge" && req.method === "POST") {
+      const body = await readJson(req);
+      if (body.email !== OWNER_EMAIL || body.password !== OWNER_PASSWORD) {
+        return send(res, 401, { error: "Unauthorized" });
+      }
+      purgeData();
+      return send(res, 200, { ok: true });
     }
 
     if (requestUrl.pathname.startsWith("/api/opportunities/") && req.method === "DELETE") {

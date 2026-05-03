@@ -97,6 +97,7 @@ const clientPhone = document.querySelector("#clientPhone");
 const opportunityUrl = document.querySelector("#opportunityUrl");
 const downloadTemplate = document.querySelector("#downloadTemplate");
 const newOpportunity = document.querySelector("#newOpportunity");
+const purgeDataButton = document.querySelector("#purgeData");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
 const editSheetHandle = document.querySelector("#editSheetHandle");
@@ -834,6 +835,7 @@ tabButtons.forEach((button) => {
 });
 
 refreshOpportunities?.addEventListener("click", loadOpportunityList);
+purgeDataButton?.addEventListener("click", purgeSavedData);
 
 opportunityList?.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-opportunity-id]");
@@ -878,6 +880,42 @@ async function deleteOpportunity(id) {
     notify("Trip deleted.");
   } catch {
     notify("Could not delete that trip. Make sure you are logged in and Railway is running.");
+  }
+}
+
+async function purgeSavedData() {
+  if (!ownerSession) {
+    notify("Log in before resetting saved data.");
+    loginDialog.showModal();
+    return;
+  }
+  const confirmed = window.confirm("Reset all saved trips, page edits, uploads, and customer selections on Railway? This cannot be undone.");
+  if (!confirmed) return;
+  try {
+    await dataApi("/api/admin/purge", {
+      method: "POST",
+      body: JSON.stringify(ownerSession)
+    });
+    localStorage.removeItem(OPPORTUNITY_LIST_KEY);
+    localStorage.removeItem(TRIP_DATA_KEY);
+    localStorage.removeItem(OPPORTUNITY_KEY);
+    localStorage.removeItem(CONTENT_KEY);
+    localStorage.removeItem(STYLE_KEY);
+    localStorage.removeItem(CHOICE_KEY);
+    tripData = structuredClone(defaultTripData);
+    selectedOfferId = null;
+    choiceForm.reset();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("opportunity");
+    window.history.replaceState({}, "", url.toString());
+    renderTrip();
+    syncOpportunityFields();
+    applySavedContent({}, {});
+    renderOpportunityList([]);
+    setOpportunityStatus("All saved Railway data has been reset.", "good");
+    notify("Saved data reset.");
+  } catch {
+    notify("Could not reset Railway data. Check the deployment and try again.");
   }
 }
 

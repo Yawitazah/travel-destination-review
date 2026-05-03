@@ -922,6 +922,16 @@ textarea, input {
   background: var(--coral);
 }
 
+.danger-button {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(236,111,102,0.35);
+  background: rgba(236,111,102,0.1);
+  color: #9c3932;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .edit-actions {
   position: sticky;
   bottom: -14px;
