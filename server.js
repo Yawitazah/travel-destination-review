@@ -320,6 +320,16 @@ const server = http.createServer(async (req, res) => {
       const opportunityId = body.tripData?.opportunity?.id || body.opportunityId || "rowan-summer-trip-may-2026";
       const store = readContentStore();
       store.opportunities = store.opportunities || {};
+      const previousOpportunity = store.opportunities[opportunityId]?.tripData?.opportunity || {};
+      if (body.tripData) {
+        body.tripData.opportunity = {
+          id: opportunityId,
+          projectName: body.tripData.opportunity?.projectName || previousOpportunity.projectName || "",
+          clientName: body.tripData.opportunity?.clientName || previousOpportunity.clientName || "",
+          clientEmail: body.tripData.opportunity?.clientEmail || previousOpportunity.clientEmail || "",
+          clientPhone: body.tripData.opportunity?.clientPhone || previousOpportunity.clientPhone || ""
+        };
+      }
       store.opportunities[opportunityId] = {
         content: body.content || {},
         styles: body.styles || {},

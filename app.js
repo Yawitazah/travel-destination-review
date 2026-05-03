@@ -112,6 +112,7 @@ const editImageHeight = document.querySelector("#editImageHeight");
 const editImageWidthRange = document.querySelector("#editImageWidthRange");
 const editImageHeightRange = document.querySelector("#editImageHeightRange");
 const ownerChoice = document.querySelector("#ownerChoice");
+const customerWelcome = document.querySelector("#customerWelcome");
 const selectedName = document.querySelector("#selectedName");
 const selectedSummary = document.querySelector("#selectedSummary");
 const choiceForm = document.querySelector("#choiceForm");
@@ -202,13 +203,21 @@ function slug(value, fallback) {
 
 function opportunityFromInputs() {
   const existing = tripData.opportunity || stored(OPPORTUNITY_KEY, defaultTripData.opportunity);
+  const remembered = localOpportunities().find((item) => item.id === existing.id || item.id === requestedOpportunityId()) || {};
+  const fallback = {
+    id: existing.id || remembered.id,
+    projectName: existing.projectName || remembered.projectName || "",
+    clientName: existing.clientName || remembered.clientName || "",
+    clientEmail: existing.clientEmail || remembered.clientEmail || "",
+    clientPhone: existing.clientPhone || remembered.clientPhone || ""
+  };
   const generatedFromFields = slug(`${projectName?.value.trim() || ""}-${clientName?.value.trim() || ""}`, "");
   const next = {
-    id: existing.id && !String(existing.id).startsWith("new-vacation-") ? existing.id : generatedFromFields,
-    projectName: projectName?.value.trim() || existing.projectName || "",
-    clientName: clientName?.value.trim() || existing.clientName || "",
-    clientEmail: clientEmail?.value.trim() || existing.clientEmail || "",
-    clientPhone: clientPhone?.value.trim() || existing.clientPhone || ""
+    id: fallback.id && !String(fallback.id).startsWith("new-vacation-") ? fallback.id : generatedFromFields,
+    projectName: projectName?.value.trim() || fallback.projectName || "",
+    clientName: clientName?.value.trim() || fallback.clientName || "",
+    clientEmail: clientEmail?.value.trim() || fallback.clientEmail || "",
+    clientPhone: clientPhone?.value.trim() || fallback.clientPhone || ""
   };
   next.id = slug(next.id || `${next.projectName}-${next.clientName}`, "vacation-opportunity");
   return next;
@@ -233,6 +242,14 @@ function syncOpportunityFields() {
     url.searchParams.set("opportunity", opportunity.id || "vacation-opportunity");
     opportunityUrl.value = url.toString();
   }
+  renderCustomerWelcome();
+}
+
+function renderCustomerWelcome() {
+  if (!customerWelcome) return;
+  const name = (tripData.opportunity?.clientName || "").trim();
+  customerWelcome.hidden = !name;
+  customerWelcome.textContent = name ? `Welcome, ${name}` : "Welcome";
 }
 
 function updateOpportunityFromInputs() {
@@ -266,7 +283,16 @@ function mergeOpportunities(remote = []) {
   const byId = new Map();
   [...localOpportunities(), ...remote].forEach((item) => {
     if (!item?.id) return;
-    byId.set(item.id, { ...(byId.get(item.id) || {}), ...item });
+    const current = byId.get(item.id) || {};
+    byId.set(item.id, {
+      ...current,
+      ...item,
+      projectName: item.projectName || current.projectName || "",
+      clientName: item.clientName || current.clientName || "",
+      clientEmail: item.clientEmail || current.clientEmail || "",
+      clientPhone: item.clientPhone || current.clientPhone || "",
+      updatedAt: item.updatedAt || current.updatedAt || ""
+    });
   });
   return [...byId.values()].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 }
@@ -560,6 +586,7 @@ function renderFlightCards() {
 
 function renderTrip() {
   document.querySelector('[data-edit-key="dateRange"]').textContent = tripData.dates;
+  renderCustomerWelcome();
   renderOffers();
   renderFlightCards();
 }
@@ -1039,6 +1066,7 @@ document.querySelector("#doneEdit").addEventListener("click", () => {
   input?.addEventListener("input", () => {
     tripData.opportunity = opportunityFromInputs();
     syncOpportunityFields();
+    renderOpportunityList(mergeOpportunities([]));
   });
 });
 

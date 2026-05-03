@@ -106,6 +106,17 @@ a { color: inherit; }
   font-weight: 800;
 }
 
+.customer-welcome {
+  width: fit-content;
+  margin: 14px 0 10px;
+  padding: 9px 13px;
+  border: 1px solid rgba(255,255,255,0.42);
+  background: rgba(255,255,255,0.14);
+  backdrop-filter: blur(14px);
+  color: rgba(255,255,255,0.92);
+  font-weight: 800;
+}
+
 .hero h1, .intro h2, .builder h2, .flight h2 {
   margin: 0;
   font-family: "Playfair Display", Georgia, serif;
@@ -566,6 +577,10 @@ textarea, input {
   box-shadow: 0 30px 90px rgba(18,49,58,0.26);
   padding: 14px;
   backdrop-filter: blur(18px);
+}
+
+.edit-panel[hidden] {
+  display: none !important;
 }
 
 .edit-sheet-handle {
