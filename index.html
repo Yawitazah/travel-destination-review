@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bahamas Vacation Offer Selection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <img class="hero__image editable-image" data-edit-key="heroImage" src="assets/bahamas-hero.png" alt="Luxury Bahamas resort and turquoise shoreline">
+    <div class="hero__shade"></div>
+    <nav class="topbar" aria-label="Trip overview">
+      <a class="brand" href="#" data-edit-href="#">
+        <img class="brand__logo editable-image" data-edit-key="brandLogo" src="assets/dej-ah-white-logo.png" alt="Dejah White Travel">
+        <span class="editable" data-edit-key="brand">Dejah White Travel</span>
+      </a>
+      <span class="trip-date editable" data-edit-key="dateRange">May 28, 2026 - June 1, 2026</span>
+    </nav>
+    <section class="hero__content">
+      <p class="eyebrow editable" data-edit-key="eyebrow">Private Bahamas Escape</p>
+      <h1 class="editable" data-edit-key="headline">Choose the Nassau stay that feels like your kind of luxury.</h1>
+      <p class="hero__copy editable" data-edit-key="heroCopy">Three polished resort options, flights included, with optional arrival upgrades and travel protection ready to add.</p>
+      <div class="hero__actions">
+        <a class="button button--primary editable" data-edit-key="primaryCta" href="#offers" data-edit-href="#offers">Compare Resorts</a>
+        <a class="button button--glass editable" data-edit-key="secondaryCta" href="#flight" data-edit-href="#flight">View Flights</a>
+      </div>
+    </section>
+  </header>
+
+  <main>
+    <section class="intro">
+      <div>
+        <p class="section-kicker editable" data-edit-key="introKicker">Curated for easy decision-making</p>
+        <h2 class="editable" data-edit-key="introTitle">A clear side-by-side choice, dressed up for the moment.</h2>
+      </div>
+      <p class="editable" data-edit-key="introCopy">Select the resort you prefer, add any optional services, and submit your choice. Your selection will be stored on this page for the travel advisor to review.</p>
+    </section>
+
+    <section id="offers" class="offers" aria-label="Resort offers"></section>
+
+    <section class="builder" aria-label="Optional trip services">
+      <div>
+        <p class="section-kicker editable" data-edit-key="optionsKicker">Customize your arrival</p>
+        <h2 class="editable" data-edit-key="optionsTitle">Add the extras that make travel feel easier.</h2>
+      </div>
+      <form id="choiceForm" class="choice-form">
+        <label><input type="checkbox" name="privateTransfer"> Private airport transfer</label>
+        <label><input type="checkbox" name="vipService"> VIP arrival/departure service</label>
+        <label><input type="checkbox" name="travelInsurance"> Travel insurance</label>
+        <label class="notes-label">Notes for Dejah
+          <textarea name="notes" rows="4" placeholder="Share preferences, questions, or anything you want considered."></textarea>
+        </label>
+        <button class="button button--primary" type="submit">Submit My Choice</button>
+      </form>
+      <aside class="selection-card" aria-live="polite">
+        <span>Your selected resort</span>
+        <strong id="selectedName">None selected yet</strong>
+        <p id="selectedSummary">Choose a resort above to build your trip preference.</p>
+      </aside>
+    </section>
+
+    <section id="flight" class="flight">
+      <div>
+        <p class="section-kicker editable" data-edit-key="flightKicker">Flight option</p>
+        <h2 class="editable" data-edit-key="flightTitle">Delta Airlines is included in the resort cost.</h2>
+      </div>
+      <div id="flightCards" class="flight-grid"></div>
+    </section>
+  </main>
+
+  <button id="editLauncher" class="edit-launcher" type="button" aria-label="Open owner editing" title="Edit">
+    <span aria-hidden="true">✎</span>
+  </button>
+
+  <dialog id="loginDialog" class="login-dialog">
+    <form method="dialog" id="loginForm">
+      <button class="dialog-close" value="cancel" aria-label="Close">x</button>
+      <h2>Owner Login</h2>
+      <label>Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="loginError" class="error" role="alert"></p>
+      <button class="button button--primary" type="submit">Unlock Editing</button>
+    </form>
+  </dialog>
+
+  <aside id="editPanel" class="edit-panel" aria-label="Owner edit dashboard" hidden>
+    <div class="edit-panel__head">
+      <strong>Edit Dashboard</strong>
+      <button id="doneEdit" type="button">Done</button>
+    </div>
+    <p id="editHint">Click text or images on the page, then adjust details here.</p>
+    <label>Text or Image URL
+      <textarea id="editValue" rows="5"></textarea>
+    </label>
+    <label id="imageUploadLabel" class="image-upload-label">Upload Image
+      <input id="editImageUpload" type="file" accept="image/*">
+    </label>
+    <label>Hyperlink
+      <input id="editHref" type="text" placeholder="https://... or #section">
+    </label>
+    <div class="style-grid">
+      <label>Color <input id="editColor" type="color" value="#14353f"></label>
+      <label>Size <input id="editSize" type="number" min="10" max="88" step="1" placeholder="px"></label>
+    </div>
+    <div id="imageSizeControls" class="image-size-controls" hidden>
+      <label>Image Width
+        <input id="editImageWidthRange" type="range" min="80" max="1200" step="10">
+        <input id="editImageWidth" type="number" min="0" max="2400" step="1" placeholder="auto">
+      </label>
+      <label>Image Height
+        <input id="editImageHeightRange" type="range" min="40" max="900" step="10">
+        <input id="editImageHeight" type="number" min="0" max="1800" step="1" placeholder="auto">
+      </label>
+      <div class="size-tools">
+        <button id="resetImageSize" type="button">Auto Size</button>
+        <button id="wideImageSize" type="button">Wide</button>
+        <button id="logoImageSize" type="button">Logo</button>
+      </div>
+    </div>
+    <label class="csv-upload-label">Upload Offer Spreadsheet
+      <input id="editCsvUpload" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    </label>
+    <div class="edit-actions">
+      <button id="applyEdit" type="button">Apply</button>
+      <button id="undoEdit" type="button">Undo</button>
+      <button id="saveEdit" type="button">Save</button>
+    </div>
+    <div class="owner-log">
+      <strong>Latest customer choice</strong>
+      <p id="ownerChoice">No customer selection saved yet.</p>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

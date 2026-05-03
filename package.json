@@ -1,0 +1,13 @@
+{
+  "name": "bahamas-vacation-offer-selection",
+  "version": "1.0.0",
+  "description": "Editable Bahamas vacation offer selection page with spreadsheet upload support.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check app.js && node --check server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
