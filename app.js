@@ -5,6 +5,7 @@ const STYLE_KEY = "dwTravelOfferStyles";
 const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
 const GOOGLE_SCRIPT_URL_KEY = "dwTravelGoogleScriptUrl";
+const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec";
 
 const defaultTripData = {
   dates: "May 28, 2026 - June 1, 2026",
@@ -146,7 +147,7 @@ async function api(path, options = {}) {
 }
 
 function configuredGoogleUrl() {
-  return (googleScriptUrl?.value || localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || "").trim();
+  return (googleScriptUrl?.value || localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || DEFAULT_GOOGLE_SCRIPT_URL || "").trim();
 }
 
 async function googleApi(action, payload = null) {
@@ -787,7 +788,7 @@ function rgbToHex(rgb) {
 }
 
 async function boot() {
-  if (googleScriptUrl) googleScriptUrl.value = localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || "";
+  if (googleScriptUrl) googleScriptUrl.value = localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || DEFAULT_GOOGLE_SCRIPT_URL;
   try {
     const remoteContent = await dataApi("/api/content");
     tripData = hydrateKnownLinks(remoteContent.tripData || stored(TRIP_DATA_KEY, defaultTripData));

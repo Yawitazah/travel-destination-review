@@ -33,6 +33,12 @@ You can use a Google Sheet as the live information source.
 8. Copy the Web App URL ending in `/exec`.
 9. Open the site, log in as admin, paste the URL into `Google Apps Script URL`, and click `Save`.
 
+Current configured Apps Script URL:
+
+```text
+https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec
+```
+
 The script can read the original Rowan-style sheet layout, including rich-text hyperlinks. It can also use normalized tabs named `Offers`, `Flights`, `Settings`, `Site Content`, and `Customer Choices`.
 
 Customer choices are written to the `Customer Choices` tab. Admin saves are written to the `Site Content` tab.
