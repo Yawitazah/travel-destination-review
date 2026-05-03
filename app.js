@@ -104,6 +104,8 @@ const choiceForm = document.querySelector("#choiceForm");
 const toast = document.querySelector("#toast");
 const offersRoot = document.querySelector("#offers");
 const flightCards = document.querySelector("#flightCards");
+const tabButtons = [...document.querySelectorAll(".edit-tab")];
+const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
 let tripData = structuredClone(defaultTripData);
 let editableItems = [];
@@ -282,6 +284,11 @@ function syncImageSizeInputs(el) {
   editImageHeight.value = height || "";
   editImageWidthRange.value = Math.min(Math.max(width || 150, Number(editImageWidthRange.min)), Number(editImageWidthRange.max));
   editImageHeightRange.value = Math.min(Math.max(height || 150, Number(editImageHeightRange.min)), Number(editImageHeightRange.max));
+}
+
+function showEditTab(name) {
+  tabButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.tab === name));
+  tabPanels.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === name));
 }
 
 function renderOffers() {
@@ -578,7 +585,12 @@ function chooseEditable(el, event) {
   editSize.value = parseInt(getComputedStyle(el).fontSize, 10) || "";
   editImageUpload.value = "";
   syncImageSizeInputs(el);
+  showEditTab(isImageEditable(el) ? "media" : "content");
 }
+
+tabButtons.forEach((button) => {
+  button.addEventListener("click", () => showEditTab(button.dataset.tab));
+});
 
 offersRoot.addEventListener("click", (event) => {
   const button = event.target.closest(".select-offer");

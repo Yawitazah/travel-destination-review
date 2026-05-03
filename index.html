@@ -89,52 +89,79 @@
 
   <aside id="editPanel" class="edit-panel" aria-label="Owner edit dashboard" hidden>
     <div class="edit-panel__head">
-      <strong>Edit Dashboard</strong>
+      <div>
+        <span class="panel-kicker">Owner Studio</span>
+        <strong>Edit Dashboard</strong>
+      </div>
       <button id="doneEdit" type="button">Done</button>
     </div>
-    <p id="editHint">Click text or images on the page, then adjust details here.</p>
-    <label>Text or Image URL
-      <textarea id="editValue" rows="5"></textarea>
-    </label>
-    <label id="imageUploadLabel" class="image-upload-label">Upload Image
-      <input id="editImageUpload" type="file" accept="image/*">
-    </label>
-    <label>Hyperlink
-      <input id="editHref" type="text" placeholder="https://... or #section">
-    </label>
-    <div class="style-grid">
-      <label>Color <input id="editColor" type="color" value="#14353f"></label>
-      <label>Size <input id="editSize" type="number" min="10" max="88" step="1" placeholder="px"></label>
+    <div class="edit-status">
+      <span class="status-dot"></span>
+      <p id="editHint">Click any highlighted text or image, then adjust it here.</p>
     </div>
-    <div id="imageSizeControls" class="image-size-controls" hidden>
-      <label>Image Width
-        <input id="editImageWidthRange" type="range" min="80" max="1200" step="10">
-        <input id="editImageWidth" type="number" min="0" max="2400" step="1" placeholder="auto">
+    <div class="edit-tabs" role="tablist" aria-label="Editor sections">
+      <button class="edit-tab is-active" type="button" data-tab="content">Content</button>
+      <button class="edit-tab" type="button" data-tab="media">Media</button>
+      <button class="edit-tab" type="button" data-tab="data">Data</button>
+      <button class="edit-tab" type="button" data-tab="activity">Activity</button>
+    </div>
+
+    <section class="tab-panel is-active" data-panel="content">
+      <label>Selected Text or Image URL
+        <textarea id="editValue" rows="5"></textarea>
       </label>
-      <label>Image Height
-        <input id="editImageHeightRange" type="range" min="40" max="900" step="10">
-        <input id="editImageHeight" type="number" min="0" max="1800" step="1" placeholder="auto">
+      <label>Hyperlink
+        <input id="editHref" type="text" placeholder="https://... or #section">
       </label>
-      <div class="size-tools">
-        <button id="resetImageSize" type="button">Auto Size</button>
-        <button id="wideImageSize" type="button">Wide</button>
-        <button id="logoImageSize" type="button">Logo</button>
+      <div class="style-grid">
+        <label>Text Color <input id="editColor" type="color" value="#14353f"></label>
+        <label>Font Size <input id="editSize" type="number" min="10" max="88" step="1" placeholder="px"></label>
       </div>
-    </div>
-    <label class="csv-upload-label">Upload Offer Spreadsheet
-      <input id="editCsvUpload" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-    </label>
-    <label>Google Apps Script URL
-      <input id="googleScriptUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-    </label>
+    </section>
+
+    <section class="tab-panel" data-panel="media">
+      <label id="imageUploadLabel" class="image-upload-label">Replace Selected Image
+        <input id="editImageUpload" type="file" accept="image/*">
+      </label>
+      <div id="imageSizeControls" class="image-size-controls" hidden>
+        <label>Image Width
+          <input id="editImageWidthRange" type="range" min="80" max="1200" step="10">
+          <input id="editImageWidth" type="number" min="0" max="2400" step="1" placeholder="auto">
+        </label>
+        <label>Image Height
+          <input id="editImageHeightRange" type="range" min="40" max="900" step="10">
+          <input id="editImageHeight" type="number" min="0" max="1800" step="1" placeholder="auto">
+        </label>
+        <div class="size-tools">
+          <button id="resetImageSize" type="button">Auto</button>
+          <button id="wideImageSize" type="button">Hero</button>
+          <button id="logoImageSize" type="button">Logo</button>
+        </div>
+      </div>
+      <p class="panel-note">Select an image on the page first. Uploads preview immediately and save when you click Save.</p>
+    </section>
+
+    <section class="tab-panel" data-panel="data">
+      <label class="csv-upload-label">Upload Offer Spreadsheet
+        <input id="editCsvUpload" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      </label>
+      <label>Google Apps Script URL
+        <input id="googleScriptUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+      </label>
+      <p class="panel-note">Use Google Sheets for live resort data, admin saves, and customer selections.</p>
+    </section>
+
+    <section class="tab-panel" data-panel="activity">
+      <div class="owner-log">
+        <span>Latest customer choice</span>
+        <p id="ownerChoice">No customer selection saved yet.</p>
+      </div>
+    </section>
+
     <div class="edit-actions">
       <button id="applyEdit" type="button">Apply</button>
       <button id="undoEdit" type="button">Undo</button>
       <button id="saveEdit" type="button">Save</button>
-    </div>
-    <div class="owner-log">
-      <strong>Latest customer choice</strong>
-      <p id="ownerChoice">No customer selection saved yet.</p>
     </div>
   </aside>
 

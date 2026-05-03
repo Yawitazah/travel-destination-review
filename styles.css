@@ -555,16 +555,17 @@ textarea, input {
 
 .edit-panel {
   position: fixed;
-  right: 16px;
-  bottom: 82px;
+  right: 18px;
+  bottom: 78px;
   z-index: 30;
-  width: min(360px, calc(100vw - 32px));
-  max-height: calc(100vh - 110px);
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 104px);
   overflow: auto;
-  background: rgba(255, 250, 243, 0.97);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-  padding: 16px;
+  background: linear-gradient(180deg, rgba(255, 250, 243, 0.99), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 30px 90px rgba(18,49,58,0.26);
+  padding: 14px;
+  backdrop-filter: blur(18px);
 }
 
 .edit-panel__head {
@@ -572,6 +573,20 @@ textarea, input {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  padding: 6px 4px 12px;
+}
+
+.panel-kicker {
+  display: block;
+  color: var(--coral);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.edit-panel__head strong {
+  display: block;
+  font-size: 1.25rem;
 }
 
 .edit-panel__head button, .edit-actions button, .size-tools button {
@@ -580,15 +595,94 @@ textarea, input {
   color: white;
 }
 
-.edit-panel label, .owner-log {
-  margin-top: 14px;
-  font-size: 0.85rem;
+.edit-status {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  background: #12313a;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.edit-status p {
+  margin: 0;
+  line-height: 1.45;
+  font-size: 0.88rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sun);
+  flex: 0 0 auto;
+  margin-top: 4px;
+  box-shadow: 0 0 0 5px rgba(247,178,103,0.18);
+}
+
+.edit-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: rgba(18,49,58,0.07);
+  padding: 6px;
+  margin-bottom: 12px;
+}
+
+.edit-tab {
+  border: 0;
+  min-height: 38px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.edit-tab.is-active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 8px 22px rgba(18,49,58,0.1);
+}
+
+.tab-panel {
+  display: none;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid var(--line);
+  padding: 14px;
+}
+
+.tab-panel.is-active {
+  display: block;
+}
+
+.edit-panel label {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.edit-panel label:first-child {
+  margin-top: 0;
+}
+
+.edit-panel textarea,
+.edit-panel input {
+  border-color: rgba(18,49,58,0.18);
+  background: #fffdf9;
 }
 
 .style-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.image-upload-label,
+.csv-upload-label {
+  padding: 14px;
+  border: 1px dashed rgba(13,105,114,0.38);
+  background: linear-gradient(135deg, rgba(20,184,196,0.08), rgba(247,178,103,0.08));
 }
 
 .image-upload-label input, .csv-upload-label input {
@@ -598,7 +692,7 @@ textarea, input {
 
 .image-size-controls {
   margin-top: 14px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   background: white;
 }
@@ -621,6 +715,50 @@ textarea, input {
 
 .size-tools button {
   padding: 0 10px;
+  background: var(--teal);
+}
+
+.panel-note {
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.owner-log {
+  padding: 16px;
+  background:
+    linear-gradient(135deg, rgba(236,111,102,0.12), rgba(20,184,196,0.12)),
+    white;
+  border: 1px solid var(--line);
+}
+
+.owner-log span {
+  display: block;
+  color: var(--coral);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.owner-log p {
+  margin: 10px 0 0;
+  line-height: 1.55;
+}
+
+.edit-actions {
+  position: sticky;
+  bottom: -14px;
+  background: linear-gradient(180deg, rgba(255,250,243,0), rgba(255,250,243,0.98) 24%);
+  padding: 16px 0 2px;
+}
+
+.edit-actions button {
+  flex: 1;
+}
+
+#saveEdit {
+  background: var(--coral);
 }
 
 body.editing .editable, body.editing .editable-image {
