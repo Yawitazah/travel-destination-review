@@ -79,6 +79,7 @@ const defaultTripData = {
 
 const loginDialog = document.querySelector("#loginDialog");
 const loginForm = document.querySelector("#loginForm");
+const dialogClose = document.querySelector(".dialog-close");
 const editLauncher = document.querySelector("#editLauncher");
 const editPanel = document.querySelector("#editPanel");
 const editValue = document.querySelector("#editValue");
@@ -586,6 +587,11 @@ choiceForm.addEventListener("submit", async (event) => {
 editLauncher.addEventListener("click", () => {
   if (document.body.classList.contains("editing")) editPanel.hidden = false;
   else loginDialog.showModal();
+});
+
+dialogClose.addEventListener("click", () => {
+  loginDialog.close();
+  document.querySelector("#loginError").textContent = "";
 });
 
 loginForm.addEventListener("submit", (event) => {
