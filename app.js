@@ -115,6 +115,8 @@ const editImageWidthRange = document.querySelector("#editImageWidthRange");
 const editImageHeightRange = document.querySelector("#editImageHeightRange");
 const ownerChoice = document.querySelector("#ownerChoice");
 const customerWelcome = document.querySelector("#customerWelcome");
+const successDialog = document.querySelector("#successDialog");
+const successClose = document.querySelector("#successClose");
 const selectedName = document.querySelector("#selectedName");
 const selectedSummary = document.querySelector("#selectedSummary");
 const choiceForm = document.querySelector("#choiceForm");
@@ -134,6 +136,8 @@ let lastSnapshot = null;
 let selectedOfferId = null;
 let ownerSession = null;
 let sheetDragState = null;
+let activityTimer = null;
+let visitTracked = false;
 
 const knownLinks = {
   "Sandals Royal Bahamian Spa Resort & Offshore Island": {
@@ -691,7 +695,7 @@ function readChoice(choice = stored(CHOICE_KEY, null)) {
 function updateOwnerChoice() {
   const choice = stored(CHOICE_KEY, null);
   if (!choice) {
-    ownerChoice.textContent = "No customer selection saved yet.";
+    ownerChoice.innerHTML = '<p class="panel-note">No customer activity yet.</p>';
     return;
   }
   const extras = [
@@ -699,7 +703,95 @@ function updateOwnerChoice() {
     choice.vipService && "VIP service",
     choice.travelInsurance && "Travel insurance"
   ].filter(Boolean).join(", ") || "No optional extras";
-  ownerChoice.textContent = `${choice.projectName || tripData.opportunity?.projectName || "Vacation Opportunity"} | ${choice.clientName || tripData.opportunity?.clientName || "Client"} | ${choice.resortName} | ${choice.room} | ${choice.price}. Guests: ${choice.guests || tripData.guests}. Extras: ${extras}. Notes: ${choice.notes || "None"}`;
+  ownerChoice.innerHTML = activityChoiceMarkup({ choice, receivedAt: choice.receivedAt || choice.submittedAt, type: "choice" }, extras);
+}
+
+function activityChoiceMarkup(item, extras = null) {
+  const choice = item.choice || item;
+  const selectedExtras = extras || [
+    choice.privateTransfer && "Private transfer",
+    choice.vipService && "VIP service",
+    choice.travelInsurance && "Travel insurance"
+  ].filter(Boolean).join(", ") || "No optional extras";
+  return `
+    <article class="activity-card activity-card--choice">
+      <div class="activity-card__top">
+        <span>Selection submitted</span>
+        <time>${escapeHtml(formatDateTime(item.receivedAt || choice.submittedAt))}</time>
+      </div>
+      <strong>${escapeHtml(choice.resortName || "Resort selected")}</strong>
+      <dl>
+        <div><dt>Client</dt><dd>${escapeHtml(choice.clientName || tripData.opportunity?.clientName || "Customer")}</dd></div>
+        <div><dt>Room</dt><dd>${escapeHtml(choice.room || "Not provided")}</dd></div>
+        <div><dt>Price</dt><dd>${escapeHtml(choice.price || "Not provided")}</dd></div>
+        <div><dt>Guests</dt><dd>${escapeHtml(choice.guests || tripData.guests || "Not provided")}</dd></div>
+        <div><dt>Extras</dt><dd>${escapeHtml(selectedExtras)}</dd></div>
+        <div><dt>Notes</dt><dd>${escapeHtml(choice.notes || "None")}</dd></div>
+      </dl>
+    </article>
+  `;
+}
+
+function activityVisitMarkup(item) {
+  return `
+    <article class="activity-card">
+      <div class="activity-card__top">
+        <span>Page visited</span>
+        <time>${escapeHtml(formatDateTime(item.receivedAt))}</time>
+      </div>
+      <strong>${escapeHtml(tripData.opportunity?.clientName || "Customer")} opened this trip page.</strong>
+      <p>${escapeHtml(item.visit?.page || window.location.pathname)}</p>
+    </article>
+  `;
+}
+
+function formatDateTime(value) {
+  if (!value) return "Just now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Just now";
+  return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function renderActivity(activity = []) {
+  if (!ownerChoice) return;
+  if (!activity.length) {
+    updateOwnerChoice();
+    return;
+  }
+  ownerChoice.innerHTML = activity.map((item) => item.type === "choice" ? activityChoiceMarkup(item) : activityVisitMarkup(item)).join("");
+}
+
+async function loadActivity() {
+  try {
+    const response = await dataApi("/api/activity");
+    renderActivity(response.activity || []);
+  } catch {
+    updateOwnerChoice();
+  }
+}
+
+function startActivityPolling() {
+  window.clearInterval(activityTimer);
+  loadActivity();
+  activityTimer = window.setInterval(loadActivity, 5000);
+}
+
+async function trackVisit() {
+  if (visitTracked) return;
+  const opportunityId = tripData.opportunity?.id || requestedOpportunityId();
+  if (opportunityId === defaultTripData.opportunity.id && !new URLSearchParams(window.location.search).get("opportunity")) return;
+  visitTracked = true;
+  try {
+    await dataApi("/api/activity", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "visit",
+        opportunityId,
+        visit: { page: window.location.pathname + window.location.search }
+      })
+    });
+  } catch {
+  }
 }
 
 function parseCsv(text) {
@@ -834,6 +926,8 @@ tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
     showEditTab(button.dataset.tab);
     if (button.dataset.tab === "opportunities") loadOpportunityList();
+    if (button.dataset.tab === "activity") startActivityPolling();
+    else window.clearInterval(activityTimer);
   });
 });
 
@@ -968,7 +1062,23 @@ choiceForm.addEventListener("submit", async (event) => {
     return;
   }
   updateOwnerChoice();
-  notify("Choice saved for Dejah to review.");
+  loadActivity();
+  showSuccessDialog();
+});
+
+function showSuccessDialog() {
+  if (!successDialog) {
+    notify("Beautiful choice. Dejah has been updated and will send next steps soon.");
+    return;
+  }
+  successDialog.hidden = false;
+  window.setTimeout(() => {
+    successDialog.hidden = true;
+  }, 9000);
+}
+
+successClose?.addEventListener("click", () => {
+  successDialog.hidden = true;
 });
 
 editLauncher.addEventListener("click", () => {
@@ -1256,12 +1366,14 @@ async function boot() {
     applySavedContent(remoteContent.content, remoteContent.styles);
     if (remoteContent.latestChoice) setStored(CHOICE_KEY, remoteContent.latestChoice);
     loadOpportunityList();
+    trackVisit();
   } catch {
     tripData = hydrateKnownLinks(stored(TRIP_DATA_KEY, defaultTripData));
     renderTrip();
     syncOpportunityFields();
     applySavedContent();
     loadOpportunityList();
+    trackVisit();
   }
 
   try {

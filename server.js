@@ -8,6 +8,7 @@ const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const CONTENT_FILE = path.join(DATA_DIR, "site-content.json");
 const CHOICE_FILE = path.join(DATA_DIR, "customer-choices.json");
+const ACTIVITY_FILE = path.join(DATA_DIR, "activity-log.json");
 const OWNER_EMAIL = "Dejahwhitetravel@gmail.com";
 const OWNER_PASSWORD = "DWtravel2026";
 
@@ -26,6 +27,7 @@ function ensureData() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(CONTENT_FILE)) fs.writeFileSync(CONTENT_FILE, JSON.stringify({ content: {}, styles: {}, tripData: null }, null, 2));
   if (!fs.existsSync(CHOICE_FILE)) fs.writeFileSync(CHOICE_FILE, JSON.stringify([], null, 2));
+  if (!fs.existsSync(ACTIVITY_FILE)) fs.writeFileSync(ACTIVITY_FILE, JSON.stringify([], null, 2));
 }
 
 function readContentStore() {
@@ -54,6 +56,20 @@ function readChoices() {
 
 function writeChoices(choices) {
   fs.writeFileSync(CHOICE_FILE, JSON.stringify(choices, null, 2));
+}
+
+function readActivity() {
+  return JSON.parse(fs.readFileSync(ACTIVITY_FILE, "utf8"));
+}
+
+function writeActivity(activity) {
+  fs.writeFileSync(ACTIVITY_FILE, JSON.stringify(activity.slice(-300), null, 2));
+}
+
+function logActivity(entry) {
+  const activity = readActivity();
+  activity.push({ ...entry, receivedAt: new Date().toISOString() });
+  writeActivity(activity);
 }
 
 function requestedOpportunity(reqUrl) {
@@ -94,6 +110,7 @@ function deleteOpportunity(opportunityId) {
 function purgeData() {
   writeContentStore({ opportunities: {} });
   writeChoices([]);
+  writeActivity([]);
 }
 
 function send(res, status, body, type = "application/json; charset=utf-8") {
@@ -384,8 +401,25 @@ const server = http.createServer(async (req, res) => {
     if (requestUrl.pathname === "/api/choices" && req.method === "POST") {
       const body = await readJson(req);
       const choices = readChoices();
-      choices.push({ ...body, receivedAt: new Date().toISOString() });
+      const receivedAt = new Date().toISOString();
+      choices.push({ ...body, receivedAt });
       writeChoices(choices);
+      logActivity({ type: "choice", opportunityId: body.opportunityId || "rowan-summer-trip-may-2026", choice: body });
+      return send(res, 200, { ok: true });
+    }
+
+    if (requestUrl.pathname === "/api/activity" && req.method === "GET") {
+      const opportunityId = requestedOpportunity(req.url || "/");
+      const activity = readActivity()
+        .filter((item) => item.opportunityId === opportunityId)
+        .slice(-30)
+        .reverse();
+      return send(res, 200, { activity });
+    }
+
+    if (requestUrl.pathname === "/api/activity" && req.method === "POST") {
+      const body = await readJson(req);
+      logActivity({ type: body.type || "visit", opportunityId: body.opportunityId || "rowan-summer-trip-may-2026", visit: body.visit || {} });
       return send(res, 200, { ok: true });
     }
 

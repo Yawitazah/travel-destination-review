@@ -777,6 +777,124 @@ textarea, input {
   line-height: 1.55;
 }
 
+.activity-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  background: white;
+  margin-top: 10px;
+}
+
+.activity-card--choice {
+  border-color: rgba(20,184,196,0.28);
+  box-shadow: 0 14px 36px rgba(18,49,58,0.08);
+}
+
+.activity-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.activity-card__top span {
+  color: var(--coral);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.activity-card__top time {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.activity-card strong {
+  font-size: 1rem;
+}
+
+.activity-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.activity-card dl div {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.activity-card dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.activity-card dd {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.success-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18,49,58,0.42);
+  backdrop-filter: blur(8px);
+}
+
+.success-dialog[hidden] {
+  display: none !important;
+}
+
+.success-dialog > div {
+  width: min(420px, 100%);
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(20,184,196,0.12), rgba(247,178,103,0.12)),
+    white;
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 28px 90px rgba(18,49,58,0.28);
+  text-align: center;
+}
+
+.success-dialog span {
+  color: var(--coral);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.success-dialog strong {
+  display: block;
+  margin-top: 8px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 2rem;
+}
+
+.success-dialog p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.success-dialog button {
+  border: 0;
+  min-height: 42px;
+  padding: 0 18px;
+  background: var(--coral);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .opportunity-list-head {
   display: flex;
   justify-content: space-between;
