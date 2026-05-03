@@ -8,7 +8,7 @@ Editable customer-facing vacation offer page for Dejah White Travel.
 npm start
 ```
 
-Then open `http://localhost:4173`.
+Then open `http://localhost:4273`.
 
 ## Features
 
@@ -17,33 +17,16 @@ Then open `http://localhost:4173`.
 - CSV and XLSX upload support.
 - XLSX hyperlink extraction for linked resort/property details.
 - Customer selection capture with optional trip extras and notes.
-- Optional Google Sheets backend through Google Apps Script.
+- Railway/Node backend for saved trips, page edits, and customer selections.
 
-## Google Sheets Backend
+## Railway Backend
 
-You can use a Google Sheet as the live information source.
+This app uses `server.js` as the live database layer. Admin saves are written to JSON files in the `data` folder on the running server:
 
-1. Create or open a Google Sheet.
-2. Go to `Extensions > Apps Script`.
-3. Paste the contents of `google-apps-script.gs`.
-4. Click `Deploy > New deployment`.
-5. Choose `Web app`.
-6. Set `Execute as` to `Me`.
-7. Set `Who has access` to `Anyone`.
-8. Copy the Web App URL ending in `/exec`.
-9. Open the site, log in as admin, paste the URL into `Google Apps Script URL`, and click `Save`.
+- `data/site-content.json` stores all vacation opportunities, page edits, styles, and uploaded trip data.
+- `data/customer-choices.json` stores customer selections and notes.
 
-When you edit `google-apps-script.gs` later, Google does not update the live `/exec` URL automatically. Go to `Deploy > Manage deployments`, click the pencil icon, choose `New version`, and deploy again. If the `Trips` tab says Google Sheets is not returning the shared list, the live deployment is still older than this repo's script.
-
-Current configured Apps Script URL:
-
-```text
-https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec
-```
-
-The script can read the original Rowan-style sheet layout, including rich-text hyperlinks. It can also use normalized tabs named `Offers`, `Flights`, `Settings`, `Opportunities`, `Site Content`, and `Customer Choices`.
-
-Customer choices are written to the `Customer Choices` tab. Admin saves are written to the `Site Content` tab, and the cross-device Trips list is written to the `Opportunities` tab.
+For production on Railway, add a Railway Volume mounted to the app if you want saved trips to survive service rebuilds/redeploys. Set `DATA_DIR` to the mounted volume path, for example `/data`. Without a persistent volume or external database, the data can be reset when Railway rebuilds the container.
 
 ## Multiple Vacation Opportunities
 
@@ -63,20 +46,18 @@ The app creates a unique opportunity ID and a `Live Opportunity URL` like:
 https://your-site.com/?opportunity=rowan-summer-trip-client-name
 ```
 
-Use that URL for the customer. Each opportunity saves separately in Google Sheets so multiple live trips do not interfere with each other.
+Use that URL for the customer. Each opportunity saves separately on the Railway server so multiple live trips do not interfere with each other.
 
 The `Download Template` button in the Data tab downloads a starter CSV with all required opportunity, resort, and flight columns.
 
-The `Trips` tab lists saved opportunities from Google Sheets. Click a trip to open its unique live URL and edit or review it.
+The `Trips` tab lists saved opportunities from Railway. Click a trip to open its unique live URL and edit or review it.
 
-The browser also keeps a local opportunity index so a newly saved trip appears immediately in `Trips` even before the Google Sheet refreshes. Google Sheets remains the shared database after Apps Script accepts the save.
+The browser also keeps a local opportunity index so a newly saved trip appears immediately in `Trips` while the Railway server response refreshes.
 
-When Save is clicked, the admin dashboard switches to the `Trips` tab and shows the saved opportunity immediately. The `Refresh` button then merges in anything currently saved in Google Sheets.
+When Save is clicked, the admin dashboard switches to the `Trips` tab and shows the saved opportunity immediately. The `Refresh` button then merges in anything currently saved on Railway.
 
 ## Deploy
 
-This app uses `server.js`, so deploy it to a Node-capable host such as Render or Railway for the full admin and spreadsheet-upload features.
+This app uses `server.js`, so Railway is the right deployment target for the full admin and spreadsheet-upload features.
 
 GitHub Pages can host only the static front-end and will not run `server.js`.
-
-If you configure the Google Apps Script URL, GitHub Pages can host the front-end while Google Sheets stores the live data.

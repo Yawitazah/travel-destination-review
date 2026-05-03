@@ -4,10 +4,8 @@ const CONTENT_KEY = "dwTravelOfferContent";
 const STYLE_KEY = "dwTravelOfferStyles";
 const CHOICE_KEY = "dwTravelCustomerChoice";
 const TRIP_DATA_KEY = "dwTravelTripData";
-const GOOGLE_SCRIPT_URL_KEY = "dwTravelGoogleScriptUrl";
 const OPPORTUNITY_KEY = "dwTravelOpportunity";
 const OPPORTUNITY_LIST_KEY = "dwTravelOpportunities";
-const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_WyJI_xE1FujmqVKSLXX8lpdHbAPHkPH83kvGQUX02k7coSwjA8XP-u4dUsk28Ug/exec";
 
 const defaultTripData = {
   opportunity: {
@@ -91,7 +89,6 @@ const defaultTripData = {
 const loginDialog = document.querySelector("#loginDialog");
 const loginForm = document.querySelector("#loginForm");
 const dialogClose = document.querySelector(".dialog-close");
-const googleScriptUrl = document.querySelector("#googleScriptUrl");
 const projectName = document.querySelector("#projectName");
 const clientName = document.querySelector("#clientName");
 const clientEmail = document.querySelector("#clientEmail");
@@ -159,7 +156,7 @@ function setStored(key, value) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(apiPath(path, options), {
     headers: { "Content-Type": "application/json" },
     ...options
   });
@@ -167,49 +164,15 @@ async function api(path, options = {}) {
   return response.json();
 }
 
-function configuredGoogleUrl() {
-  return (googleScriptUrl?.value || localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || DEFAULT_GOOGLE_SCRIPT_URL || "").trim();
+function apiPath(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  if (method !== "GET" || !["/api/content", "/api/choices"].includes(path)) return path;
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set("opportunityId", requestedOpportunityId());
+  return `${url.pathname}${url.search}`;
 }
 
-async function googleApi(action, payload = null) {
-  const endpoint = configuredGoogleUrl();
-  if (!endpoint) throw new Error("Google Apps Script URL is not configured");
-  const opportunityId = (payload?.opportunityId || tripData.opportunity?.id || requestedOpportunityId());
-  const readJson = async (response) => {
-    if (!response.ok) throw new Error(`Google request failed: ${response.status}`);
-    const data = await response.json();
-    if (data?.ok === false) throw new Error(data.error || "Google request failed");
-    return data;
-  };
-  if (payload) {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, opportunityId, ...payload })
-    });
-    return readJson(response);
-  }
-  const url = new URL(endpoint);
-  url.searchParams.set("action", action);
-  url.searchParams.set("opportunityId", opportunityId);
-  const response = await fetch(url.toString());
-  return readJson(response);
-}
-
-async function dataApi(path, options = {}) {
-  const googleUrl = configuredGoogleUrl();
-  if (googleUrl && path === "/api/content" && !options.method) {
-    return googleApi("content");
-  }
-  if (googleUrl && path === "/api/opportunities") {
-    return googleApi("opportunities");
-  }
-  if (googleUrl && path === "/api/choices") {
-    return googleApi("choice", { choice: JSON.parse(options.body || "{}") });
-  }
-  if (googleUrl && path === "/api/content" && options.method === "POST") {
-    return googleApi("content", JSON.parse(options.body || "{}"));
-  }
+function dataApi(path, options = {}) {
   return api(path, options);
 }
 
@@ -331,7 +294,7 @@ function setOpportunityStatus(message = "", type = "") {
 
 function assertOpportunityResponse(response) {
   if (!Array.isArray(response?.opportunities)) {
-    throw new Error("The deployed Google Apps Script does not return the Trips list yet.");
+    throw new Error("The server did not return the Trips list.");
   }
   return response.opportunities;
 }
@@ -344,7 +307,7 @@ async function verifySharedOpportunity(opportunityId) {
 async function loadOpportunityList() {
   const local = mergeOpportunities([]);
   renderOpportunityList(local);
-  setOpportunityStatus(local.length ? "Checking Google Sheets for shared trips..." : "Checking Google Sheets for shared trips.");
+  setOpportunityStatus(local.length ? "Checking Railway for shared trips..." : "Checking Railway for shared trips.");
   try {
     const response = await dataApi("/api/opportunities");
     const remote = assertOpportunityResponse(response);
@@ -352,14 +315,14 @@ async function loadOpportunityList() {
     const localOnlyCount = local.filter((item) => !remote.some((remoteItem) => remoteItem.id === item.id)).length;
     setOpportunityStatus(
       localOnlyCount
-        ? `${localOnlyCount} trip${localOnlyCount === 1 ? " is" : "s are"} only saved in this browser. Click Save after redeploying the Google script to make them visible on your phone.`
-        : "Connected to Google Sheets. These trips are shared across devices.",
+        ? `${localOnlyCount} trip${localOnlyCount === 1 ? " is" : "s are"} only saved in this browser. Click Save to send them to Railway.`
+        : "Connected to Railway. These trips are shared across devices.",
       localOnlyCount ? "warning" : "good"
     );
   } catch (error) {
     renderOpportunityList(local);
     setOpportunityStatus(
-      "Google Sheets is not returning the shared Trips list yet. Redeploy the Apps Script from this project, then click Refresh.",
+      "The Railway server is not returning the shared Trips list yet. Check the deployment, then click Refresh.",
       "warning"
     );
   }
@@ -815,7 +778,7 @@ choiceForm.addEventListener("submit", async (event) => {
   try {
     await dataApi("/api/choices", { method: "POST", body: JSON.stringify(choice) });
   } catch {
-    notify("Choice saved in this browser. Check the Google URL or server if advisor review is needed.");
+    notify("Choice saved in this browser. Check the Railway server if advisor review is needed.");
     updateOwnerChoice();
     return;
   }
@@ -948,29 +911,28 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
   setStored(TRIP_DATA_KEY, tripData);
-  localStorage.setItem(GOOGLE_SCRIPT_URL_KEY, configuredGoogleUrl());
-  let googleSaved = false;
+  let serverSaved = false;
   if (ownerSession) {
     try {
       await dataApi("/api/content", {
         method: "POST",
         body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
       });
-      googleSaved = await verifySharedOpportunity(opportunity.id);
-      if (!googleSaved) {
+      serverSaved = await verifySharedOpportunity(opportunity.id);
+      if (!serverSaved) {
         setOpportunityStatus(
-          "The page content saved, but Google Sheets did not register this trip in the shared Trips list. Redeploy the latest Apps Script, then Save again.",
+          "The page content saved, but Railway did not register this trip in the shared Trips list. Click Save again after the latest server deploy finishes.",
           "warning"
         );
       }
     } catch (error) {
-      notify("Saved locally. Google Sheets did not accept the save; update/redeploy Apps Script and try Save again.");
+      notify("Saved locally. Railway did not accept the save; check the deployment and try Save again.");
     }
   }
   updateOwnerChoice();
   loadOpportunityList();
   showEditTab("opportunities");
-  notify(googleSaved ? "Saved to Google Sheets and Trips." : "Saved locally only. Google Trips needs the latest Apps Script.");
+  notify(serverSaved ? "Saved to Railway and Trips." : "Saved locally only. Railway needs the latest server deploy.");
 });
 
 document.querySelector("#undoEdit").addEventListener("click", () => {
@@ -1064,7 +1026,6 @@ function rgbToHex(rgb) {
 }
 
 async function boot() {
-  if (googleScriptUrl) googleScriptUrl.value = localStorage.getItem(GOOGLE_SCRIPT_URL_KEY) || DEFAULT_GOOGLE_SCRIPT_URL;
   try {
     const remoteContent = await dataApi("/api/content");
     tripData = hydrateKnownLinks(remoteContent.tripData || stored(TRIP_DATA_KEY, defaultTripData));
@@ -1085,7 +1046,7 @@ async function boot() {
   }
 
   try {
-    const remoteChoice = configuredGoogleUrl() ? stored(CHOICE_KEY, null) : await api("/api/choices");
+    const remoteChoice = await api("/api/choices");
     if (remoteChoice) setStored(CHOICE_KEY, remoteChoice);
     readChoice(remoteChoice);
   } catch {

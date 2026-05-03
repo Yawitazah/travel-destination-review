@@ -5,7 +5,7 @@ const zlib = require("zlib");
 
 const PORT = process.env.PORT || process.argv[2] || 4273;
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const CONTENT_FILE = path.join(DATA_DIR, "site-content.json");
 const CHOICE_FILE = path.join(DATA_DIR, "customer-choices.json");
 const OWNER_EMAIL = "Dejahwhitetravel@gmail.com";
@@ -26,6 +26,59 @@ function ensureData() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(CONTENT_FILE)) fs.writeFileSync(CONTENT_FILE, JSON.stringify({ content: {}, styles: {}, tripData: null }, null, 2));
   if (!fs.existsSync(CHOICE_FILE)) fs.writeFileSync(CHOICE_FILE, JSON.stringify([], null, 2));
+}
+
+function readContentStore() {
+  const raw = JSON.parse(fs.readFileSync(CONTENT_FILE, "utf8"));
+  if (raw.opportunities) return raw;
+  const id = raw.tripData?.opportunity?.id || "rowan-summer-trip-may-2026";
+  return {
+    opportunities: {
+      [id]: {
+        content: raw.content || {},
+        styles: raw.styles || {},
+        tripData: raw.tripData || null,
+        updatedAt: raw.updatedAt || new Date().toISOString()
+      }
+    }
+  };
+}
+
+function writeContentStore(store) {
+  fs.writeFileSync(CONTENT_FILE, JSON.stringify(store, null, 2));
+}
+
+function readChoices() {
+  return JSON.parse(fs.readFileSync(CHOICE_FILE, "utf8"));
+}
+
+function writeChoices(choices) {
+  fs.writeFileSync(CHOICE_FILE, JSON.stringify(choices, null, 2));
+}
+
+function requestedOpportunity(reqUrl) {
+  const url = new URL(reqUrl, "http://localhost");
+  return url.searchParams.get("opportunityId") || "rowan-summer-trip-may-2026";
+}
+
+function listOpportunities() {
+  const store = readContentStore();
+  return Object.entries(store.opportunities || {}).map(([id, record]) => {
+    const opportunity = record.tripData?.opportunity || {};
+    return {
+      id,
+      projectName: opportunity.projectName || "",
+      clientName: opportunity.clientName || "",
+      clientEmail: opportunity.clientEmail || "",
+      clientPhone: opportunity.clientPhone || "",
+      updatedAt: record.updatedAt || ""
+    };
+  }).sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+}
+
+function latestChoice(opportunityId) {
+  const choices = readChoices().filter((choice) => !opportunityId || choice.opportunityId === opportunityId);
+  return choices.at(-1) || null;
 }
 
 function send(res, status, body, type = "application/json; charset=utf-8") {
@@ -250,33 +303,50 @@ ensureData();
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.url === "/api/content" && req.method === "GET") {
-      return send(res, 200, fs.readFileSync(CONTENT_FILE, "utf8"));
+    const requestUrl = new URL(req.url || "/", "http://localhost");
+
+    if (requestUrl.pathname === "/api/content" && req.method === "GET") {
+      const opportunityId = requestedOpportunity(req.url || "/");
+      const store = readContentStore();
+      const record = store.opportunities?.[opportunityId] || { content: {}, styles: {}, tripData: null };
+      return send(res, 200, { ...record, latestChoice: latestChoice(opportunityId) });
     }
 
-    if (req.url === "/api/content" && req.method === "POST") {
+    if (requestUrl.pathname === "/api/content" && req.method === "POST") {
       const body = await readJson(req);
       if (body.email !== OWNER_EMAIL || body.password !== OWNER_PASSWORD) {
         return send(res, 401, { error: "Unauthorized" });
       }
-      fs.writeFileSync(CONTENT_FILE, JSON.stringify({ content: body.content || {}, styles: body.styles || {}, tripData: body.tripData || null }, null, 2));
-      return send(res, 200, { ok: true });
+      const opportunityId = body.tripData?.opportunity?.id || body.opportunityId || "rowan-summer-trip-may-2026";
+      const store = readContentStore();
+      store.opportunities = store.opportunities || {};
+      store.opportunities[opportunityId] = {
+        content: body.content || {},
+        styles: body.styles || {},
+        tripData: body.tripData || null,
+        updatedAt: new Date().toISOString()
+      };
+      writeContentStore(store);
+      return send(res, 200, { ok: true, opportunityId });
     }
 
-    if (req.url === "/api/choices" && req.method === "GET") {
-      const choices = JSON.parse(fs.readFileSync(CHOICE_FILE, "utf8"));
-      return send(res, 200, choices.at(-1) || null);
+    if (requestUrl.pathname === "/api/opportunities" && req.method === "GET") {
+      return send(res, 200, { opportunities: listOpportunities() });
     }
 
-    if (req.url === "/api/choices" && req.method === "POST") {
+    if (requestUrl.pathname === "/api/choices" && req.method === "GET") {
+      return send(res, 200, latestChoice(requestedOpportunity(req.url || "/")));
+    }
+
+    if (requestUrl.pathname === "/api/choices" && req.method === "POST") {
       const body = await readJson(req);
-      const choices = JSON.parse(fs.readFileSync(CHOICE_FILE, "utf8"));
+      const choices = readChoices();
       choices.push({ ...body, receivedAt: new Date().toISOString() });
-      fs.writeFileSync(CHOICE_FILE, JSON.stringify(choices, null, 2));
+      writeChoices(choices);
       return send(res, 200, { ok: true });
     }
 
-    if (req.url === "/api/parse-spreadsheet" && req.method === "POST") {
+    if (requestUrl.pathname === "/api/parse-spreadsheet" && req.method === "POST") {
       const body = await readJson(req);
       const parsed = parseXlsx(Buffer.from(body.data || "", "base64"));
       return send(res, 200, parsed);
