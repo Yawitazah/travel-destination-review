@@ -6,6 +6,8 @@ const OFFERS_SHEET = 'Offers';
 const FLIGHTS_SHEET = 'Flights';
 
 function doGet(e) {
+  e = e || { parameter: {} };
+  e.parameter = e.parameter || {};
   const action = (e.parameter.action || 'content').toLowerCase();
   const opportunityId = e.parameter.opportunityId || 'rowan-summer-trip-may-2026';
   if (action === 'content') {
