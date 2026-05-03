@@ -932,7 +932,7 @@ body.editing .is-selected-edit {
 
 @media (max-width: 640px) {
   body.editing {
-    padding-bottom: 36vh;
+    padding-bottom: var(--mobile-editor-padding, 38vh);
   }
 
   .topbar {
@@ -963,7 +963,8 @@ body.editing .is-selected-edit {
     right: 0;
     bottom: 0;
     width: 100%;
-    height: 34dvh;
+    height: var(--mobile-sheet-height, 34vh);
+    height: var(--mobile-sheet-height, 34dvh);
     max-height: none;
     display: flex;
     flex-direction: column;
@@ -976,8 +977,13 @@ body.editing .is-selected-edit {
   }
 
   .edit-panel.is-expanded {
-    height: 78dvh;
+    height: var(--mobile-sheet-height, 78vh);
+    height: var(--mobile-sheet-height, 78dvh);
     box-shadow: 0 -34px 90px rgba(18,49,58,0.34);
+  }
+
+  .edit-panel.is-dragging {
+    transition: none;
   }
 
   .edit-sheet-handle {
@@ -992,6 +998,8 @@ body.editing .is-selected-edit {
     border: 0;
     background: transparent;
     cursor: pointer;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
     z-index: 2;
   }
 
@@ -1072,11 +1080,13 @@ body.editing .is-selected-edit {
   }
 
   .toast {
-    bottom: calc(34dvh + 12px);
+    bottom: calc(var(--mobile-sheet-height, 34vh) + 12px);
+    bottom: calc(var(--mobile-sheet-height, 34dvh) + 12px);
     width: calc(100vw - 28px);
   }
 
   .edit-panel.is-expanded ~ .toast {
-    bottom: calc(78dvh + 12px);
+    bottom: calc(var(--mobile-sheet-height, 78vh) + 12px);
+    bottom: calc(var(--mobile-sheet-height, 78dvh) + 12px);
   }
 }

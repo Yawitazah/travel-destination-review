@@ -130,6 +130,7 @@ let currentEditable = null;
 let lastSnapshot = null;
 let selectedOfferId = null;
 let ownerSession = null;
+let sheetDragState = null;
 
 const knownLinks = {
   "Sandals Royal Bahamian Spa Resort & Offshore Island": {
@@ -414,10 +415,56 @@ function showEditTab(name) {
   tabPanels.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === name));
 }
 
-function setEditSheetExpanded(expanded) {
+function mobileSheetHeight(expanded) {
+  const viewport = window.innerHeight || document.documentElement.clientHeight || 800;
+  return Math.round(viewport * (expanded ? 0.78 : 0.34));
+}
+
+function setEditSheetHeight(height) {
+  editPanel.style.setProperty("--mobile-sheet-height", `${height}px`);
+  document.body.style.setProperty("--mobile-editor-padding", `${Math.max(120, height + 18)}px`);
+}
+
+function setEditSheetExpanded(expanded, customHeight = null) {
+  const height = customHeight || mobileSheetHeight(expanded);
   editPanel.classList.toggle("is-expanded", expanded);
+  setEditSheetHeight(height);
   editSheetHandle?.setAttribute("aria-expanded", String(expanded));
   editSheetHandle?.setAttribute("aria-label", expanded ? "Collapse edit dashboard" : "Expand edit dashboard");
+}
+
+function beginEditSheetDrag(event) {
+  if (!editSheetHandle || !editPanel) return;
+  sheetDragState = {
+    startY: event.clientY,
+    startHeight: editPanel.getBoundingClientRect().height,
+    moved: false
+  };
+  editPanel.classList.add("is-dragging");
+  editSheetHandle.setPointerCapture?.(event.pointerId);
+}
+
+function moveEditSheetDrag(event) {
+  if (!sheetDragState) return;
+  const viewport = window.innerHeight || document.documentElement.clientHeight || 800;
+  const minHeight = viewport * 0.28;
+  const maxHeight = viewport * 0.86;
+  const delta = sheetDragState.startY - event.clientY;
+  const height = Math.min(maxHeight, Math.max(minHeight, sheetDragState.startHeight + delta));
+  sheetDragState.moved = sheetDragState.moved || Math.abs(delta) > 8;
+  setEditSheetHeight(height);
+}
+
+function endEditSheetDrag(event) {
+  if (!sheetDragState) return false;
+  const viewport = window.innerHeight || document.documentElement.clientHeight || 800;
+  const height = editPanel.getBoundingClientRect().height;
+  const moved = sheetDragState.moved;
+  editPanel.classList.remove("is-dragging");
+  editSheetHandle?.releasePointerCapture?.(event.pointerId);
+  sheetDragState = null;
+  setEditSheetExpanded(height > viewport * 0.52, height > viewport * 0.52 ? mobileSheetHeight(true) : mobileSheetHeight(false));
+  return moved;
 }
 
 function renderOffers() {
@@ -798,8 +845,29 @@ editLauncher.addEventListener("click", () => {
   else loginDialog.showModal();
 });
 
-editSheetHandle?.addEventListener("click", () => {
+editSheetHandle?.addEventListener("click", (event) => {
+  if (editSheetHandle.dataset.justDragged === "true") {
+    event.preventDefault();
+    editSheetHandle.dataset.justDragged = "";
+    return;
+  }
   setEditSheetExpanded(!editPanel.classList.contains("is-expanded"));
+});
+
+editSheetHandle?.addEventListener("pointerdown", (event) => {
+  beginEditSheetDrag(event);
+});
+
+editSheetHandle?.addEventListener("pointermove", (event) => {
+  moveEditSheetDrag(event);
+});
+
+editSheetHandle?.addEventListener("pointerup", (event) => {
+  if (endEditSheetDrag(event)) editSheetHandle.dataset.justDragged = "true";
+});
+
+editSheetHandle?.addEventListener("pointercancel", (event) => {
+  if (endEditSheetDrag(event)) editSheetHandle.dataset.justDragged = "true";
 });
 
 dialogClose.addEventListener("click", () => {
