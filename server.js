@@ -81,6 +81,16 @@ function latestChoice(opportunityId) {
   return choices.at(-1) || null;
 }
 
+function deleteOpportunity(opportunityId) {
+  const store = readContentStore();
+  const existed = Boolean(store.opportunities?.[opportunityId]);
+  if (store.opportunities) delete store.opportunities[opportunityId];
+  writeContentStore(store);
+  const choices = readChoices().filter((choice) => choice.opportunityId !== opportunityId);
+  writeChoices(choices);
+  return existed;
+}
+
 function send(res, status, body, type = "application/json; charset=utf-8") {
   res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store" });
   if (Buffer.isBuffer(body) || typeof body === "string") {
@@ -342,6 +352,15 @@ const server = http.createServer(async (req, res) => {
 
     if (requestUrl.pathname === "/api/opportunities" && req.method === "GET") {
       return send(res, 200, { opportunities: listOpportunities() });
+    }
+
+    if (requestUrl.pathname.startsWith("/api/opportunities/") && req.method === "DELETE") {
+      const body = await readJson(req);
+      if (body.email !== OWNER_EMAIL || body.password !== OWNER_PASSWORD) {
+        return send(res, 401, { error: "Unauthorized" });
+      }
+      const opportunityId = decodeURIComponent(requestUrl.pathname.replace("/api/opportunities/", ""));
+      return send(res, 200, { ok: true, deleted: deleteOpportunity(opportunityId), opportunityId });
     }
 
     if (requestUrl.pathname === "/api/choices" && req.method === "GET") {

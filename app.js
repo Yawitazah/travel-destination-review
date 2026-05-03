@@ -279,6 +279,12 @@ function rememberOpportunity(opportunity = tripData.opportunity) {
   return list;
 }
 
+function forgetOpportunity(id) {
+  const list = localOpportunities().filter((item) => item.id !== id);
+  setStored(OPPORTUNITY_LIST_KEY, list);
+  return list;
+}
+
 function mergeOpportunities(remote = []) {
   const byId = new Map();
   [...localOpportunities(), ...remote].forEach((item) => {
@@ -305,11 +311,14 @@ function renderOpportunityList(opportunities = []) {
   }
   const currentId = tripData.opportunity?.id || requestedOpportunityId();
   opportunityList.innerHTML = opportunities.map((item) => `
-    <button class="opportunity-item ${item.id === currentId ? "is-active" : ""}" type="button" data-opportunity-id="${escapeHtml(item.id)}">
-      <strong>${escapeHtml(item.projectName || item.id)}</strong>
-      <span>${escapeHtml(item.clientName || "No client name")} ${item.clientEmail ? `| ${escapeHtml(item.clientEmail)}` : ""}</span>
-      <span>${escapeHtml(item.clientPhone || "")}</span>
-    </button>
+    <div class="opportunity-item ${item.id === currentId ? "is-active" : ""}">
+      <button class="opportunity-open" type="button" data-opportunity-id="${escapeHtml(item.id)}">
+        <strong>${escapeHtml(item.projectName || item.id)}</strong>
+        <span>${escapeHtml(item.clientName || "No client name")} ${item.clientEmail ? `| ${escapeHtml(item.clientEmail)}` : ""}</span>
+        <span>${escapeHtml(item.clientPhone || "")}</span>
+      </button>
+      <button class="opportunity-delete" type="button" data-delete-opportunity-id="${escapeHtml(item.id)}" aria-label="Delete ${escapeHtml(item.projectName || item.id)}">Delete</button>
+    </div>
   `).join("");
 }
 
@@ -810,6 +819,16 @@ tabButtons.forEach((button) => {
 refreshOpportunities?.addEventListener("click", loadOpportunityList);
 
 opportunityList?.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-opportunity-id]");
+  if (deleteButton) {
+    const id = deleteButton.dataset.deleteOpportunityId;
+    const label = deleteButton.closest(".opportunity-item")?.querySelector("strong")?.textContent || id;
+    const confirmed = window.confirm(`Delete "${label}"? This removes the trip and its saved customer selections from Railway.`);
+    if (!confirmed) return;
+    deleteOpportunity(id);
+    return;
+  }
+
   const item = event.target.closest("[data-opportunity-id]");
   if (!item) return;
   const id = item.dataset.opportunityId;
@@ -817,6 +836,33 @@ opportunityList?.addEventListener("click", (event) => {
   url.searchParams.set("opportunity", id);
   window.location.href = url.toString();
 });
+
+async function deleteOpportunity(id) {
+  try {
+    await dataApi(`/api/opportunities/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      body: JSON.stringify(ownerSession || {})
+    });
+    forgetOpportunity(id);
+    if (id === (tripData.opportunity?.id || requestedOpportunityId())) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("opportunity");
+      window.history.replaceState({}, "", url.toString());
+      tripData = structuredClone(defaultTripData);
+      setStored(TRIP_DATA_KEY, tripData);
+      setStored(OPPORTUNITY_KEY, tripData.opportunity);
+      setStored(CONTENT_KEY, {});
+      setStored(STYLE_KEY, {});
+      renderTrip();
+      syncOpportunityFields();
+      applySavedContent({}, {});
+    }
+    loadOpportunityList();
+    notify("Trip deleted.");
+  } catch {
+    notify("Could not delete that trip. Make sure you are logged in and Railway is running.");
+  }
+}
 
 offersRoot.addEventListener("click", (event) => {
   const button = event.target.closest(".select-offer");

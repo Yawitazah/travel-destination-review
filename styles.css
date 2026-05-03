@@ -804,12 +804,34 @@ textarea, input {
 }
 
 .opportunity-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: stretch;
   border: 1px solid var(--line);
   background: white;
-  padding: 12px;
+  padding: 10px;
+  color: var(--ink);
+}
+
+.opportunity-open {
+  border: 0;
+  background: transparent;
+  padding: 2px;
   text-align: left;
   cursor: pointer;
   color: var(--ink);
+}
+
+.opportunity-delete {
+  align-self: center;
+  border: 1px solid rgba(236,111,102,0.28);
+  min-height: 34px;
+  padding: 0 10px;
+  background: rgba(236,111,102,0.08);
+  color: #9c3932;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .opportunity-item.is-active {
@@ -817,12 +839,12 @@ textarea, input {
   box-shadow: 0 12px 32px rgba(236,111,102,0.16);
 }
 
-.opportunity-item strong {
+.opportunity-open strong {
   display: block;
   font-size: 0.98rem;
 }
 
-.opportunity-item span {
+.opportunity-open span {
   display: block;
   color: var(--muted);
   font-size: 0.82rem;
