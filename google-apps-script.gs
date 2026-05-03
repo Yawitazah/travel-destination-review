@@ -17,6 +17,9 @@ function doGet(e) {
       latestChoice: latestChoice(opportunityId)
     });
   }
+  if (action === 'opportunities') {
+    return jsonOutput({ opportunities: listOpportunities() });
+  }
   return jsonOutput({ ok: true });
 }
 
@@ -117,6 +120,24 @@ function saveOpportunity(opportunityId, opportunity) {
   const rowIndex = values.findIndex((existing, index) => index > 0 && existing[0] === opportunityId);
   if (rowIndex >= 0) sheet.getRange(rowIndex + 1, 1, 1, headers.length).setValues([row]);
   else sheet.appendRow(row);
+}
+
+function listOpportunities() {
+  const sheet = SpreadsheetApp.getActive().getSheetByName(OPPORTUNITIES_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  return values.map((row) => {
+    const record = Object.fromEntries(headers.map((header, index) => [header, row[index]]));
+    return {
+      id: record['Opportunity ID'] || '',
+      projectName: record['Project Name'] || '',
+      clientName: record['Client Name'] || '',
+      clientEmail: record['Client Email'] || '',
+      clientPhone: record['Client Phone'] || '',
+      updatedAt: record['Updated At'] || ''
+    };
+  }).filter((item) => item.id);
 }
 
 function parseJson(raw, fallback) {

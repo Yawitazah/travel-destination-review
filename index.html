@@ -102,6 +102,7 @@
     <div class="edit-tabs" role="tablist" aria-label="Editor sections">
       <button class="edit-tab is-active" type="button" data-tab="content">Content</button>
       <button class="edit-tab" type="button" data-tab="media">Media</button>
+      <button class="edit-tab" type="button" data-tab="opportunities">Trips</button>
       <button class="edit-tab" type="button" data-tab="data">Data</button>
       <button class="edit-tab" type="button" data-tab="activity">Activity</button>
     </div>
@@ -139,6 +140,19 @@
         </div>
       </div>
       <p class="panel-note">Select an image on the page first. Uploads preview immediately and save when you click Save.</p>
+    </section>
+
+    <section class="tab-panel" data-panel="opportunities">
+      <div class="opportunity-list-head">
+        <div>
+          <span>Saved Trips</span>
+          <p>Open an existing vacation opportunity or start a new one.</p>
+        </div>
+        <button id="refreshOpportunities" type="button">Refresh</button>
+      </div>
+      <div id="opportunityList" class="opportunity-list">
+        <p class="panel-note">Saved opportunities will appear here after they are saved to Google Sheets.</p>
+      </div>
     </section>
 
     <section class="tab-panel" data-panel="data">

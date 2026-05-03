@@ -623,7 +623,7 @@ textarea, input {
 
 .edit-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   background: rgba(18,49,58,0.07);
   padding: 6px;
@@ -744,6 +744,70 @@ textarea, input {
 .owner-log p {
   margin: 10px 0 0;
   line-height: 1.55;
+}
+
+.opportunity-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.opportunity-list-head span {
+  display: block;
+  color: var(--coral);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.opportunity-list-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.opportunity-list-head button {
+  border: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  background: var(--ink);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.opportunity-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.opportunity-item {
+  border: 1px solid var(--line);
+  background: white;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.opportunity-item.is-active {
+  border-color: var(--coral);
+  box-shadow: 0 12px 32px rgba(236,111,102,0.16);
+}
+
+.opportunity-item strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.opportunity-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 4px;
 }
 
 .opportunity-card {

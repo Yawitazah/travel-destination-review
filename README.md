@@ -65,6 +65,8 @@ Use that URL for the customer. Each opportunity saves separately in Google Sheet
 
 The `Download Template` button in the Data tab downloads a starter CSV with all required opportunity, resort, and flight columns.
 
+The `Trips` tab lists saved opportunities from Google Sheets. Click a trip to open its unique live URL and edit or review it.
+
 ## Deploy
 
 This app uses `server.js`, so deploy it to a Node-capable host such as Render or Railway for the full admin and spreadsheet-upload features.

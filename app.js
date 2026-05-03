@@ -119,6 +119,8 @@ const choiceForm = document.querySelector("#choiceForm");
 const toast = document.querySelector("#toast");
 const offersRoot = document.querySelector("#offers");
 const flightCards = document.querySelector("#flightCards");
+const opportunityList = document.querySelector("#opportunityList");
+const refreshOpportunities = document.querySelector("#refreshOpportunities");
 const tabButtons = [...document.querySelectorAll(".edit-tab")];
 const tabPanels = [...document.querySelectorAll(".tab-panel")];
 
@@ -193,6 +195,9 @@ async function dataApi(path, options = {}) {
   if (googleUrl && path === "/api/content" && !options.method) {
     return googleApi("content");
   }
+  if (googleUrl && path === "/api/opportunities") {
+    return googleApi("opportunities");
+  }
   if (googleUrl && path === "/api/choices") {
     return googleApi("choice", { choice: JSON.parse(options.body || "{}") });
   }
@@ -264,6 +269,31 @@ function updateOpportunityFromInputs() {
   setStored(OPPORTUNITY_KEY, tripData.opportunity);
   syncOpportunityFields();
   return tripData.opportunity;
+}
+
+function renderOpportunityList(opportunities = []) {
+  if (!opportunityList) return;
+  if (!opportunities.length) {
+    opportunityList.innerHTML = '<p class="panel-note">No saved opportunities yet. Create one in the Data tab, upload the spreadsheet, then Save.</p>';
+    return;
+  }
+  const currentId = tripData.opportunity?.id || requestedOpportunityId();
+  opportunityList.innerHTML = opportunities.map((item) => `
+    <button class="opportunity-item ${item.id === currentId ? "is-active" : ""}" type="button" data-opportunity-id="${escapeHtml(item.id)}">
+      <strong>${escapeHtml(item.projectName || item.id)}</strong>
+      <span>${escapeHtml(item.clientName || "No client name")} ${item.clientEmail ? `| ${escapeHtml(item.clientEmail)}` : ""}</span>
+      <span>${escapeHtml(item.clientPhone || "")}</span>
+    </button>
+  `).join("");
+}
+
+async function loadOpportunityList() {
+  try {
+    const response = await dataApi("/api/opportunities");
+    renderOpportunityList(response.opportunities || []);
+  } catch {
+    renderOpportunityList([]);
+  }
 }
 
 function boolValue(value) {
@@ -658,7 +688,21 @@ function chooseEditable(el, event) {
 }
 
 tabButtons.forEach((button) => {
-  button.addEventListener("click", () => showEditTab(button.dataset.tab));
+  button.addEventListener("click", () => {
+    showEditTab(button.dataset.tab);
+    if (button.dataset.tab === "opportunities") loadOpportunityList();
+  });
+});
+
+refreshOpportunities?.addEventListener("click", loadOpportunityList);
+
+opportunityList?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-opportunity-id]");
+  if (!item) return;
+  const id = item.dataset.opportunityId;
+  const url = new URL(window.location.href);
+  url.searchParams.set("opportunity", id);
+  window.location.href = url.toString();
 });
 
 offersRoot.addEventListener("click", (event) => {
@@ -950,11 +994,13 @@ async function boot() {
     syncOpportunityFields();
     applySavedContent(remoteContent.content, remoteContent.styles);
     if (remoteContent.latestChoice) setStored(CHOICE_KEY, remoteContent.latestChoice);
+    loadOpportunityList();
   } catch {
     tripData = hydrateKnownLinks(stored(TRIP_DATA_KEY, defaultTripData));
     renderTrip();
     syncOpportunityFields();
     applySavedContent();
+    loadOpportunityList();
   }
 
   try {
