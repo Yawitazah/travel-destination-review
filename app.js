@@ -295,6 +295,11 @@ function forgetOpportunity(id) {
   return list;
 }
 
+function syncLocalOpportunities(opportunities = []) {
+  setStored(OPPORTUNITY_LIST_KEY, opportunities);
+  return opportunities;
+}
+
 function mergeOpportunities(remote = []) {
   const byId = new Map();
   [...localOpportunities(), ...remote].forEach((item) => {
@@ -352,19 +357,17 @@ async function verifySharedOpportunity(opportunityId) {
 }
 
 async function loadOpportunityList() {
-  const local = mergeOpportunities([]);
+  const local = localOpportunities();
   renderOpportunityList(local);
-  setOpportunityStatus(local.length ? "Checking Railway for shared trips..." : "Checking Railway for shared trips.");
+  setOpportunityStatus("Checking Railway for shared trips.");
   try {
     const response = await dataApi("/api/opportunities");
     const remote = assertOpportunityResponse(response);
-    renderOpportunityList(mergeOpportunities(remote));
-    const localOnlyCount = local.filter((item) => !remote.some((remoteItem) => remoteItem.id === item.id)).length;
+    syncLocalOpportunities(remote);
+    renderOpportunityList(remote);
     setOpportunityStatus(
-      localOnlyCount
-        ? `${localOnlyCount} trip${localOnlyCount === 1 ? " is" : "s are"} only saved in this browser. Click Save to send them to Railway.`
-        : "Connected to Railway. These trips are shared across devices.",
-      localOnlyCount ? "warning" : "good"
+      remote.length ? "Connected to Railway. These trips are shared across devices." : "Connected to Railway. No saved trips yet.",
+      "good"
     );
   } catch (error) {
     renderOpportunityList(local);
@@ -1119,8 +1122,8 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
     return;
   }
   const opportunity = updateOpportunityFromInputs();
-  rememberOpportunity(opportunity);
-  renderOpportunityList(mergeOpportunities([]));
+  renderOpportunityList([opportunity]);
+  setOpportunityStatus("Saving this trip to Railway...");
   const snapshot = captureContent();
   setStored(CONTENT_KEY, snapshot.content);
   setStored(STYLE_KEY, snapshot.styles);
@@ -1132,6 +1135,7 @@ document.querySelector("#saveEdit").addEventListener("click", async () => {
       body: JSON.stringify({ ...ownerSession, content: snapshot.content, styles: snapshot.styles, tripData })
     });
     serverSaved = await verifySharedOpportunity(opportunity.id);
+    if (serverSaved) rememberOpportunity(opportunity);
     if (!serverSaved) {
       setOpportunityStatus(
         "The page content saved, but Railway did not register this trip in the shared Trips list. Click Save again after the latest server deploy finishes.",
