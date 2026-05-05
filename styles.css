@@ -764,7 +764,21 @@ textarea, input {
   border: 1px solid var(--line);
 }
 
-.owner-log span {
+.activity-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.activity-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.owner-log span,
+.activity-head span {
   display: block;
   color: var(--coral);
   font-size: 0.72rem;
@@ -772,9 +786,44 @@ textarea, input {
   font-weight: 900;
 }
 
-.owner-log p {
-  margin: 10px 0 0;
-  line-height: 1.55;
+.activity-switch {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+  padding: 6px;
+  background: rgba(18,49,58,0.07);
+}
+
+.activity-filter {
+  border: 0;
+  min-height: 36px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.activity-filter span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  margin-left: 5px;
+  border-radius: 999px;
+  background: rgba(18,49,58,0.1);
+  color: inherit;
+  font-size: 0.72rem;
+}
+
+.activity-filter.is-active {
+  background: white;
+  color: var(--ink);
+  box-shadow: 0 8px 22px rgba(18,49,58,0.1);
+}
+
+.activity-feed {
+  margin-top: 12px;
 }
 
 .activity-card {
@@ -1048,6 +1097,13 @@ textarea, input {
   color: #9c3932;
   font-weight: 900;
   cursor: pointer;
+}
+
+.danger-button--small {
+  width: auto;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.78rem;
 }
 
 .edit-actions {

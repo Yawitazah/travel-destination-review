@@ -193,8 +193,18 @@
 
     <section class="tab-panel" data-panel="activity">
       <div class="owner-log">
-        <span>Latest customer choice</span>
-        <p id="ownerChoice">No customer selection saved yet.</p>
+        <div class="activity-head">
+          <div>
+            <span>Customer Activity</span>
+            <p>Review page visits and submitted selections for this trip.</p>
+          </div>
+          <button id="resetActivity" class="danger-button danger-button--small" type="button">Reset Activity</button>
+        </div>
+        <div class="activity-switch" role="tablist" aria-label="Activity views">
+          <button class="activity-filter is-active" type="button" data-activity-filter="choice">Selections <span id="selectionCount">0</span></button>
+          <button class="activity-filter" type="button" data-activity-filter="visit">Visits <span id="visitCount">0</span></button>
+        </div>
+        <div id="ownerChoice" class="activity-feed">No customer activity yet.</div>
       </div>
     </section>
 

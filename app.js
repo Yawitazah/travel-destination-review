@@ -117,6 +117,10 @@ const ownerChoice = document.querySelector("#ownerChoice");
 const customerWelcome = document.querySelector("#customerWelcome");
 const successDialog = document.querySelector("#successDialog");
 const successClose = document.querySelector("#successClose");
+const activityFilters = [...document.querySelectorAll(".activity-filter")];
+const selectionCount = document.querySelector("#selectionCount");
+const visitCount = document.querySelector("#visitCount");
+const resetActivity = document.querySelector("#resetActivity");
 const selectedName = document.querySelector("#selectedName");
 const selectedSummary = document.querySelector("#selectedSummary");
 const choiceForm = document.querySelector("#choiceForm");
@@ -138,6 +142,8 @@ let ownerSession = null;
 let sheetDragState = null;
 let activityTimer = null;
 let visitTracked = false;
+let currentActivityFilter = "choice";
+let currentActivity = [];
 
 const knownLinks = {
   "Sandals Royal Bahamian Spa Resort & Offshore Island": {
@@ -695,7 +701,7 @@ function readChoice(choice = stored(CHOICE_KEY, null)) {
 function updateOwnerChoice() {
   const choice = stored(CHOICE_KEY, null);
   if (!choice) {
-    ownerChoice.innerHTML = '<p class="panel-note">No customer activity yet.</p>';
+    ownerChoice.innerHTML = '<p class="panel-note">No selections yet.</p>';
     return;
   }
   const extras = [
@@ -754,11 +760,23 @@ function formatDateTime(value) {
 
 function renderActivity(activity = []) {
   if (!ownerChoice) return;
-  if (!activity.length) {
-    updateOwnerChoice();
+  currentActivity = activity;
+  const selections = activity.filter((item) => item.type === "choice");
+  const visits = activity.filter((item) => item.type === "visit");
+  if (selectionCount) selectionCount.textContent = String(selections.length);
+  if (visitCount) visitCount.textContent = String(visits.length);
+  const filtered = currentActivityFilter === "visit" ? visits : selections;
+  if (!filtered.length) {
+    ownerChoice.innerHTML = `<p class="panel-note">No ${currentActivityFilter === "visit" ? "visits" : "selections"} yet.</p>`;
     return;
   }
-  ownerChoice.innerHTML = activity.map((item) => item.type === "choice" ? activityChoiceMarkup(item) : activityVisitMarkup(item)).join("");
+  ownerChoice.innerHTML = filtered.map((item) => item.type === "choice" ? activityChoiceMarkup(item) : activityVisitMarkup(item)).join("");
+}
+
+function showActivityFilter(filter) {
+  currentActivityFilter = filter;
+  activityFilters.forEach((button) => button.classList.toggle("is-active", button.dataset.activityFilter === filter));
+  renderActivity(currentActivity);
 }
 
 async function loadActivity() {
@@ -774,6 +792,33 @@ function startActivityPolling() {
   window.clearInterval(activityTimer);
   loadActivity();
   activityTimer = window.setInterval(loadActivity, 5000);
+}
+
+async function resetCurrentActivity() {
+  if (!ownerSession) {
+    notify("Log in before resetting activity.");
+    loginDialog.showModal();
+    return;
+  }
+  const confirmed = window.confirm("Reset visits and selections for this trip? This lets the customer start over.");
+  if (!confirmed) return;
+  try {
+    await dataApi("/api/activity/reset", {
+      method: "POST",
+      body: JSON.stringify({ ...ownerSession, opportunityId: tripData.opportunity?.id || requestedOpportunityId() })
+    });
+    localStorage.removeItem(CHOICE_KEY);
+    selectedOfferId = null;
+    choiceForm.reset();
+    selectedName.textContent = "None selected yet";
+    selectedSummary.textContent = "Choose a resort above to build your trip preference.";
+    document.querySelectorAll(".offer").forEach((card) => card.classList.remove("is-selected"));
+    currentActivity = [];
+    renderActivity([]);
+    notify("Activity reset for this trip.");
+  } catch {
+    notify("Could not reset activity. Check Railway and try again.");
+  }
 }
 
 async function trackVisit() {
@@ -933,6 +978,10 @@ tabButtons.forEach((button) => {
 
 refreshOpportunities?.addEventListener("click", loadOpportunityList);
 purgeDataButton?.addEventListener("click", purgeSavedData);
+resetActivity?.addEventListener("click", resetCurrentActivity);
+activityFilters.forEach((button) => {
+  button.addEventListener("click", () => showActivityFilter(button.dataset.activityFilter));
+});
 
 opportunityList?.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-opportunity-id]");

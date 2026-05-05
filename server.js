@@ -97,6 +97,11 @@ function latestChoice(opportunityId) {
   return choices.at(-1) || null;
 }
 
+function resetOpportunityActivity(opportunityId) {
+  writeChoices(readChoices().filter((choice) => choice.opportunityId !== opportunityId));
+  writeActivity(readActivity().filter((item) => item.opportunityId !== opportunityId));
+}
+
 function deleteOpportunity(opportunityId) {
   const store = readContentStore();
   const existed = Boolean(store.opportunities?.[opportunityId]);
@@ -383,6 +388,16 @@ const server = http.createServer(async (req, res) => {
       }
       purgeData();
       return send(res, 200, { ok: true });
+    }
+
+    if (requestUrl.pathname === "/api/activity/reset" && req.method === "POST") {
+      const body = await readJson(req);
+      if (body.email !== OWNER_EMAIL || body.password !== OWNER_PASSWORD) {
+        return send(res, 401, { error: "Unauthorized" });
+      }
+      const opportunityId = body.opportunityId || "rowan-summer-trip-may-2026";
+      resetOpportunityActivity(opportunityId);
+      return send(res, 200, { ok: true, opportunityId });
     }
 
     if (requestUrl.pathname.startsWith("/api/opportunities/") && req.method === "DELETE") {
